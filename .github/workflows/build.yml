@@ -1,0 +1,104 @@
+name: build vienna kernel
+
+# Objetivo: responder UMA pergunta — o alvo GKI compila sem o `vendor/mediatek`
+# (árvore proprietária da MediaTek, que ninguém publica)?
+on:
+  workflow_dispatch:
+    inputs:
+      mmi_tag:
+        description: "Tag MMI da build Motorola"
+        default: "MMI-W1UIS36H.39-17-8"
+      manifest_branch:
+        description: "Branch do manifesto do kernel AOSP"
+        default: "common-android14-6.1"
+      target:
+        description: "Alvo Bazel"
+        default: "//kernel-6.1:kernel_aarch64_abi_dist"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350          # o teto do job é 360
+    steps:
+      - name: Specs do runner (medir, não supor)
+        run: |
+          echo "cores : $(nproc)"; free -h | sed -n 2p; df -h / | tail -1
+
+      - name: Liberar disco
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 4096
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
+
+      - run: df -h / | tail -1
+
+      - name: Dependências + repo
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq python3 git curl unzip zip rsync bc bison flex libssl-dev
+          mkdir -p ~/.local/bin
+          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo -o ~/.local/bin/repo
+          chmod +x ~/.local/bin/repo; echo "$HOME/.local/bin" >> $GITHUB_PATH
+          git config --global user.email ci@localhost; git config --global user.name ci
+
+      - name: repo sync (18 projetos, revisões PINADAS pelo manifesto)
+        run: |
+          mkdir -p ws && cd ws
+          repo init -q -u https://android.googlesource.com/kernel/manifest \
+                    -b "${{ inputs.manifest_branch }}" --depth=1
+          repo sync -c -j$(nproc) --no-tags --fail-fast
+          echo "--- default revision do manifesto:"; grep -E "<default" .repo/manifests/default.xml
+          du -sh . ; df -h / | tail -1
+
+      - name: Árvores da Motorola na tag ${{ inputs.mmi_tag }}
+        run: |
+          cd ws; T="${{ inputs.mmi_tag }}"
+          dl(){ curl -fsSL "https://codeload.github.com/MotorolaMobilityLLC/$1/tar.gz/refs/tags/$T" | tar -xz; }
+          dl kernel-mtk                        && mv "kernel-mtk-$T"                        kernel-6.1
+          dl kernel-kernel_device_modules-6.1  && mv "kernel-kernel_device_modules-6.1-$T"  kernel_device_modules-6.1
+          git clone -q --depth 1 -b "$T" \
+            https://github.com/MotorolaMobilityLLC/kernel-build-bazel_mgk_rules build/bazel_mgk_rules
+          # o WORKSPACE do MTK substitui o do AOSP (define @mgk_info, mgk_internal, mgk_ko)
+          cp -f build/bazel_mgk_rules/kleaf/bazel.WORKSPACE WORKSPACE
+          du -sh .; df -h / | tail -1
+
+      - name: Delta do vienna (overlays)
+        run: |
+          cd ws/kernel_device_modules-6.1
+          mkdir -p kernel/configs
+          for c in moto-mgk_64_k61 moto-mgk_64_k61-vienna moto-mgk_64_k61-df; do
+            cp -v "arch/arm64/configs/ext_config/$c.config" kernel/configs/
+          done
+          test -f arch/arm64/configs/mgk_64_k61_defconfig && echo "defconfig OK"
+
+      - name: O TESTE — o alvo GKI compila sem vendor/mediatek?
+        id: build
+        env:
+          BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN: 1
+          SOURCE_DATE_EPOCH: 0
+          KERNEL_VERSION: kernel-6.1
+          DEFCONFIG_OVERLAYS: "moto-mgk_64_k61.config moto-mgk_64_k61-vienna.config moto-mgk_64_k61-df.config"
+        run: |
+          cd ws
+          mkdir -p ../vendor/mediatek/kernel_modules   # stub: só para o WORKSPACE carregar
+          tools/bazel run "${{ inputs.target }}" -- --dist_dir="$PWD/dist" 2>&1 | tail -60
+
+      - name: O que saiu
+        if: always()
+        run: |
+          ls -lh ws/dist 2>/dev/null || echo "sem dist/"
+          find ws/dist -maxdepth 1 -name "Image*" -o -maxdepth 1 -name "*.ko" 2>/dev/null | head -20
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vienna-${{ inputs.mmi_tag }}
+          path: |
+            ws/dist/Image*
+            ws/dist/*.gz
+          if-no-files-found: warn
+          retention-days: 14
