@@ -76,7 +76,7 @@ and are neither redistributed nor relicensed here.
 
 ## Contact
 
-| Canal | Endereço |
+| Channel | Address |
 |---|---|
 | Telegram | [@VD_Priv8](https://t.me/VD_Priv8) |
 | E-mail | `vd.priv8 [at] pm.me` |
