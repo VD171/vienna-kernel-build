@@ -27,7 +27,8 @@ jobs:
       - name: Liberar disco
         uses: easimon/maximize-build-space@master
         with:
-          root-reserve-mb: 4096
+          root-reserve-mb: 2048
+          build-mount-path: '/home/runner/work/_build'
           remove-dotnet: 'true'
           remove-android: 'true'
           remove-haskell: 'true'
@@ -85,7 +86,12 @@ jobs:
         run: |
           cd ws
           mkdir -p ../vendor/mediatek/kernel_modules   # stub: só para o WORKSPACE carregar
-          tools/bazel run "${{ inputs.target }}" -- --dist_dir="$PWD/dist" 2>&1 | tail -60
+          # 🔑 O Bazel escreve em ~/.cache/bazel POR PADRÃO, que fica na RAIZ — e foi isso que
+          #    encheu o disco (100%, 426 MB de sobra) no run 32606253916. `--output_user_root`
+          #    manda a saída para o volume do maximize-build-space, onde está o espaço livre.
+          BZ=/home/runner/work/_build/bazel-root; mkdir -p "$BZ"
+          tools/bazel --output_user_root="$BZ" run "${{ inputs.target }}" -- --dist_dir="$PWD/dist" 2>&1 | tail -60
+          echo "--- disco depois do build:"; df -h / /home/runner/work/_build | tail -2
 
       - name: O que saiu
         if: always()
