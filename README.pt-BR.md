@@ -42,7 +42,17 @@ aparelho** e pressupõe uma árvore obtida por `repo`. Faltam nele:
 **32** repositórios em `external/`; a revisão que o manifesto fixa é WORKSPACE-based e exige **0**.
 Perseguir os repositórios que "faltam" é caçar o sintoma — a causa é a revisão.
 
-## Fonte
+## Links
 
-Levantamento completo, armadilhas e o roteiro em prosa:
-`Docs/Android/MOTOROLA_EDGE_60_NEO.md` §6.7 (repo de documentação do dono).
+| Onde | O quê |
+|---|---|
+| 💬 [t.me/Edge60Neo](https://t.me/Edge60Neo) | Telegram — Edge 60 Neo |
+| 💬 [t.me/MotorolaEdge60Neo](https://t.me/MotorolaEdge60Neo) | Telegram — Motorola Edge 60 Neo |
+| 🧵 [Thread no XDA](https://xdaforums.com/t/guide-rooting-how-to-root-motorola-60-edge-neo-5g-xt2509-1-vienna.4798267/) | `[GUIDE][ROOTING]` XT2509-1 (vienna) |
+| 🛠 [VD171/vienna-kernel-build](https://github.com/VD171/vienna-kernel-build) | este repo |
+
+## Licença
+
+[MIT](LICENSE) — este repo apenas **automatiza** a montagem e o build.
+As fontes do kernel são **GPL-2.0**, da [MotorolaMobilityLLC](https://github.com/MotorolaMobilityLLC),
+e aqui não são redistribuídas nem relicenciadas.
