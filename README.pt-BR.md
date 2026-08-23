@@ -56,3 +56,12 @@ Perseguir os repositórios que "faltam" é caçar o sintoma — a causa é a rev
 [MIT](LICENSE) — este repo apenas **automatiza** a montagem e o build.
 As fontes do kernel são **GPL-2.0**, da [MotorolaMobilityLLC](https://github.com/MotorolaMobilityLLC),
 e aqui não são redistribuídas nem relicenciadas.
+
+## Contato
+
+| | |
+|---|---|
+| Telegram | [@VD_Priv8](https://t.me/VD_Priv8) |
+| E-mail | `vd.priv8 [at] pm.me` |
+| XDA | [VD171](https://xdaforums.com/m/vd171.4699873/) |
+| GitHub | [VD171](https://github.com/VD171) |
