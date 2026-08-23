@@ -73,3 +73,12 @@ The `Image` comes out as an artifact.
 [MIT](LICENSE) — this repo only **automates** assembling and building.
 The kernel sources are **GPL-2.0**, from [MotorolaMobilityLLC](https://github.com/MotorolaMobilityLLC),
 and are neither redistributed nor relicensed here.
+
+## Contact
+
+| | |
+|---|---|
+| Telegram | [@VD_Priv8](https://t.me/VD_Priv8) |
+| E-mail | `vd.priv8 [at] pm.me` |
+| XDA | [VD171](https://xdaforums.com/m/vd171.4699873/) |
+| GitHub | [VD171](https://github.com/VD171) |
