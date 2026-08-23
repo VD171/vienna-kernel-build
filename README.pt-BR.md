@@ -10,7 +10,7 @@ Build do kernel do **Motorola Edge 60 Neo** (`vienna`, MT6878 / Dimensity 7400) 
 
 ## Status
 
-| | |
+| O quê | Estado |
 |---|---|
 | O `Image` compila | ✅ 34 MB, em **36 min** num runner comum (2 cores, 7,8 GB) |
 | Device modules | ❌ barrados pelo `vendor/mediatek` proprietário da MediaTek |

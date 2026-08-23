@@ -11,7 +11,7 @@ on GitHub Actions, straight from Motorola's GPL release.
 
 ## Status
 
-| | |
+| What | Status |
 |---|---|
 | `Image` builds | ✅ 34 MB, in **36 min** on a stock runner (2 cores, 7.8 GB RAM) |
 | Device modules | ❌ blocked by MediaTek's proprietary `vendor/mediatek` |
