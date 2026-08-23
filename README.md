@@ -6,7 +6,7 @@ Reproducible **kernel build for the Motorola Edge 60 Neo** (`vienna`, MT6878 / D
 on GitHub Actions, straight from Motorola's GPL release.
 
 > ⚠️ **This does NOT give you root.** It builds the **stock GKI kernel** from source. There is no
-> KernelSU in it. It exists to prove the build recipe works — rooting the Edge 60 Neo is done with
+> KernelSU in it. It exists to prove the build recipe works. Rooting the Edge 60 Neo is done with
 > **LKM patched into `init_boot`**, which needs no kernel build at all.
 
 ## Status
@@ -15,12 +15,12 @@ on GitHub Actions, straight from Motorola's GPL release.
 |---|---|
 | `Image` builds | ✅ 34 MB, in **36 min** on a stock runner (2 cores, 7.8 GB RAM) |
 | Device modules | ❌ blocked by MediaTek's proprietary `vendor/mediatek` |
-| Boots on device | ❓ **never tested** — a built `Image` proves the recipe, not the boot |
+| Boots on device | ❓ **never tested**. A built `Image` proves the recipe, not the boot |
 
 ## The one thing this repo is worth reading for
 
 Motorola publishes a `MMI-<build>.txt` with defconfig, overlays and Bazel targets. **It is not a
-complete procedure** — it documents the *device delta* and assumes a tree obtained with `repo`.
+complete procedure**: it documents the *device delta* and assumes a tree obtained with `repo`.
 Two things it never says:
 
 1. where `build/kernel` and `build/bazel_mgk_rules` come from, and
@@ -46,7 +46,7 @@ repo init -u https://android.googlesource.com/kernel/manifest -b common-android1
 repo sync -c -j$(nproc)
 ```
 
-That is 18 projects, and `tools/bazel` + `WORKSPACE` come **ready** — no symlink hacks needed.
+That is 18 projects, and `tools/bazel` + `WORKSPACE` come **ready**, with no symlink hacks needed.
 
 ### 🔑 `vendor/mediatek` does not block the GKI kernel
 
@@ -59,19 +59,43 @@ MediaTek's `WORKSPACE` declares `mgk_internal` / `mgk_ko` pointing at `../vendor
 Actions → **build vienna kernel** → *Run workflow*. Inputs: MMI tag, manifest branch, Bazel target.
 The `Image` comes out as an artifact.
 
+## Published kernel sources (catalogue)
+
+Every **vienna** tag Motorola has released so far, newest first. `kernel-mtk` and
+`kernel-kernel_device_modules-6.1` use the **same tag names**, so one lookup serves both.
+
+| Tag | Android | Notes |
+|---|---|---|
+| [`MMI-W1UIS36H.39-17-8`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-W1UIS36H.39-17-8) | 16 | **current**: what this workflow builds |
+| [`MMI-V2UIS35.43-12-4-1`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-V2UIS35.43-12-4-1) | 15 |  |
+| [`MMI-V1UIS35H.11-39-28-5`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-V1UIS35H.11-39-28-5) | 15 |  |
+| [`MMI-V1UIS35H.11-39-16-5`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-V1UIS35H.11-39-16-5) | 15 |  |
+| [`MMI-V1UIS35H.11-39-16-2`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-V1UIS35H.11-39-16-2) | 15 |  |
+| [`MMI-V1UI35H.11-39-16`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-V1UI35H.11-39-16) | 15 |  |
+| [`MMI-U4UI34.8-28-1`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-U4UI34.8-28-1) | 14 |  |
+| [`MMI-U4UI34.8-22-7`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-U4UI34.8-22-7) | 14 |  |
+
+Note the device token **`UI`** in every Build ID: that is what identifies the platform, and it is
+why searching for "XT2509" finds nothing.
+
+**Yours missing?** Open an issue at
+[MotorolaMobilityLLC/kernel-mtk](https://github.com/MotorolaMobilityLLC/kernel-mtk/issues) with your
+**Build ID** and **Build fingerprint** (one build per issue). Mine was answered in **2 days**.
+This list is kept updated as new tags appear.
+
 ## Links
 
 | Where | What |
 |---|---|
-| 💬 [t.me/Edge60Neo](https://t.me/Edge60Neo) | Telegram — Edge 60 Neo |
-| 💬 [t.me/MotorolaEdge60Neo](https://t.me/MotorolaEdge60Neo) | Telegram — Motorola Edge 60 Neo |
-| 💬 [t.me/Motorola_Edge_60_Neo](https://t.me/Motorola_Edge_60_Neo) | Telegram — Motorola Edge 60 Neo |
+| 💬 [t.me/Edge60Neo](https://t.me/Edge60Neo) | Telegram, Edge 60 Neo |
+| 💬 [t.me/MotorolaEdge60Neo](https://t.me/MotorolaEdge60Neo) | Telegram, Motorola Edge 60 Neo |
+| 💬 [t.me/Motorola_Edge_60_Neo](https://t.me/Motorola_Edge_60_Neo) | Telegram, Motorola Edge 60 Neo |
 | 🧵 [XDA thread](https://xdaforums.com/t/guide-rooting-how-to-root-motorola-60-edge-neo-5g-xt2509-1-vienna.4798267/) | `[GUIDE][ROOTING]` XT2509-1 (vienna) |
 | 🛠 [VD171/vienna-kernel-build](https://github.com/VD171/vienna-kernel-build) | this repo |
 
 ## License
 
-[MIT](LICENSE) — this repo only **automates** assembling and building.
+[MIT](LICENSE). This repo only **automates** assembling and building.
 The kernel sources are **GPL-2.0**, from [MotorolaMobilityLLC](https://github.com/MotorolaMobilityLLC),
 and are neither redistributed nor relicensed here.
 
