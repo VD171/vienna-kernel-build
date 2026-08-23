@@ -59,7 +59,7 @@ e aqui não são redistribuídas nem relicenciadas.
 
 ## Contato
 
-| | |
+| Canal | Endereço |
 |---|---|
 | Telegram | [@VD_Priv8](https://t.me/VD_Priv8) |
 | E-mail | `vd.priv8 [at] pm.me` |
