@@ -28,9 +28,10 @@ jobs:
         uses: easimon/maximize-build-space@master
         with:
           root-reserve-mb: 2048
-          # SEM build-mount-path: o default é o próprio ${GITHUB_WORKSPACE}, e é ali que o
-          # `repo sync` (11 GB) grava. 🪤 Apontar o mount para outro lugar joga as FONTES de
-          # volta para a raiz — foi o que quebrou o run 32609783567.
+          build-mount-path: '/mnt/build'
+          # 🪤 MEDIDO: confiar no cwd NÃO basta. No run 32609985091 o volume ficou com 24 KB
+          #    usados e a raiz foi a 100% (329 MB livres) — o build passou por sorte. A cura é
+          #    montar num caminho EXPLÍCITO e usá-lo em TODOS os passos, nunca o cwd implícito.
           remove-dotnet: 'true'
           remove-android: 'true'
           remove-haskell: 'true'
@@ -38,6 +39,12 @@ jobs:
           remove-docker-images: 'true'
 
       - run: df -h / | tail -1
+
+      - name: Preparar o volume
+        run: |
+          sudo chown -R runner:runner /mnt/build
+          echo "WS=/mnt/build/ws" >> $GITHUB_ENV
+          df -h / /mnt/build | tail -2
 
       - name: Dependências + repo
         run: |
@@ -50,16 +57,16 @@ jobs:
 
       - name: repo sync (18 projetos, revisões PINADAS pelo manifesto)
         run: |
-          mkdir -p ws && cd ws
+          mkdir -p "$WS" && cd "$WS"
           repo init -q -u https://android.googlesource.com/kernel/manifest \
                     -b "${{ inputs.manifest_branch }}" --depth=1
           repo sync -c -j$(nproc) --no-tags --fail-fast
           echo "--- default revision do manifesto:"; grep -E "<default" .repo/manifests/default.xml
-          du -sh . ; df -h / | tail -1
+          du -sh . ; df -h / /mnt/build | tail -2
 
       - name: Árvores da Motorola na tag ${{ inputs.mmi_tag }}
         run: |
-          cd ws; T="${{ inputs.mmi_tag }}"
+          cd "$WS"; T="${{ inputs.mmi_tag }}"
           dl(){ curl -fsSL "https://codeload.github.com/MotorolaMobilityLLC/$1/tar.gz/refs/tags/$T" | tar -xz; }
           dl kernel-mtk                        && mv "kernel-mtk-$T"                        kernel-6.1
           dl kernel-kernel_device_modules-6.1  && mv "kernel-kernel_device_modules-6.1-$T"  kernel_device_modules-6.1
@@ -67,11 +74,11 @@ jobs:
             https://github.com/MotorolaMobilityLLC/kernel-build-bazel_mgk_rules build/bazel_mgk_rules
           # o WORKSPACE do MTK substitui o do AOSP (define @mgk_info, mgk_internal, mgk_ko)
           cp -f build/bazel_mgk_rules/kleaf/bazel.WORKSPACE WORKSPACE
-          du -sh .; df -h / | tail -1
+          du -sh .; df -h / /mnt/build | tail -2
 
       - name: Delta do vienna (overlays)
         run: |
-          cd ws/kernel_device_modules-6.1
+          cd "$WS/kernel_device_modules-6.1"
           mkdir -p kernel/configs
           for c in moto-mgk_64_k61 moto-mgk_64_k61-vienna moto-mgk_64_k61-df; do
             cp -v "arch/arm64/configs/ext_config/$c.config" kernel/configs/
@@ -86,27 +93,27 @@ jobs:
           KERNEL_VERSION: kernel-6.1
           DEFCONFIG_OVERLAYS: "moto-mgk_64_k61.config moto-mgk_64_k61-vienna.config moto-mgk_64_k61-df.config"
         run: |
-          cd ws
+          cd "$WS"
           mkdir -p ../vendor/mediatek/kernel_modules   # stub: só para o WORKSPACE carregar
           # 🔑 O Bazel escreve em ~/.cache/bazel POR PADRÃO, que fica na RAIZ — e foi isso que
           #    encheu o disco (100%, 426 MB de sobra) no run 32606253916. `--output_user_root`
           #    manda a saída para o volume do maximize-build-space, onde está o espaço livre.
-          BZ="$GITHUB_WORKSPACE/bazel-root"; mkdir -p "$BZ"
+          BZ=/mnt/build/bazel-root; mkdir -p "$BZ"
           tools/bazel --output_user_root="$BZ" run "${{ inputs.target }}" -- --dist_dir="$PWD/dist" 2>&1 | tail -60
-          echo "--- disco depois do build:"; df -h / "$GITHUB_WORKSPACE" | tail -2
+          echo "--- disco depois do build:"; df -h / /mnt/build | tail -2
 
       - name: O que saiu
         if: always()
         run: |
-          ls -lh ws/dist 2>/dev/null || echo "sem dist/"
-          find ws/dist -maxdepth 1 -name "Image*" -o -maxdepth 1 -name "*.ko" 2>/dev/null | head -20
+          ls -lh "$WS/dist" 2>/dev/null || echo "sem dist/"
+          find "$WS/dist" -maxdepth 1 -name "Image*" -o -maxdepth 1 -name "*.ko" 2>/dev/null | head -20
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: vienna-${{ inputs.mmi_tag }}
           path: |
-            ws/dist/Image*
-            ws/dist/*.gz
+            /mnt/build/ws/dist/Image*
+            /mnt/build/ws/dist/*.gz
           if-no-files-found: warn
           retention-days: 14
