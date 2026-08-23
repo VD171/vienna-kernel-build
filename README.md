@@ -65,6 +65,7 @@ The `Image` comes out as an artifact.
 |---|---|
 | 💬 [t.me/Edge60Neo](https://t.me/Edge60Neo) | Telegram — Edge 60 Neo |
 | 💬 [t.me/MotorolaEdge60Neo](https://t.me/MotorolaEdge60Neo) | Telegram — Motorola Edge 60 Neo |
+| 💬 [t.me/Motorola_Edge_60_Neo](https://t.me/Motorola_Edge_60_Neo) | Telegram — Motorola Edge 60 Neo |
 | 🧵 [XDA thread](https://xdaforums.com/t/guide-rooting-how-to-root-motorola-60-edge-neo-5g-xt2509-1-vienna.4798267/) | `[GUIDE][ROOTING]` XT2509-1 (vienna) |
 | 🛠 [VD171/vienna-kernel-build](https://github.com/VD171/vienna-kernel-build) | this repo |
 
