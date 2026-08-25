@@ -98,25 +98,24 @@ jobs:
         run: |
           cd "$WS"
           mkdir -p ../vendor/mediatek/kernel_modules   # stub: só para o WORKSPACE carregar
-          # Linux version EXATA (doc §9.7): o Kleaf usa script proprio (nao o setlocalversion do kernel)
-          # e SEM git dava maybe-dirty + timestamp 1970. O override oficial e o workspace_status.json no
-          # projeto: SCMVERSION (string completa c/ o -ab) + SOURCE_DATE_EPOCH (int). Alvo do build:
-          # 6.1.141-android14-11-gd77c4cd65aed-ab14680598 / Wed Jan 7 15:04:33 UTC 2026.
-          # O override so vale para PROJETO BAZEL MAPEADO (get_execroot_rel_paths). O kernel-6.1 e
-          # tarball avulso (nao mapeado) -> build 4 deu scmversion vazio. O common/ veio do repo sync
-          # (projeto do manifesto, MAPEADO) e p/ GKI (kernel_aarch64) o vmlinux e o kernel do common.
-          # Poe o override nos dois (o KERNEL_DIR provavel e o common):
+          # Linux version EXATA (doc §9.7). Alvo: 6.1.141-android14-11-gd77c4cd65aed-ab14680598
+          # / Wed Jan 7 15:04:33 UTC 2026. TRES levers, todos necessarios (fonte kleaf lido:
+          # workspace_status_stamp.py + bazel.py + stamp.bzl):
+          #  1. workspace_status.json no kernel-6.1: SCMVERSION (string c/ -ab) + SOURCE_DATE_EPOCH (int).
+          #  2. --extra_git_project=kernel-6.1 (FLAG do wrapper, NAO env): o kernel-6.1 e tarball fora
+          #     do manifesto repo; sem esta flag ele nunca entra em all_projects e o json nem e lido.
+          #     A env var KLEAF_EXTRA_GIT_PROJECTS NAO adianta -> o Bazel limpa o env do
+          #     workspace_status_command; so a flag popula a var (bazel.py l.508). Builds 3-5 usaram a
+          #     env var -> scmversion VAZIO + epoch 0. Este era o lever real que faltava.
+          #  3. --config=stamp: sem ele stamp.bzl (l.62/236) hardcoda -maybe-dirty + epoch 0 e nem
+          #     consulta o json. O lookup e STABLE_SCMVERSIONS["${KERNEL_DIR}"], e ${KERNEL_DIR}=kernel-6.1.
           J='{"SCMVERSION":"-gd77c4cd65aed-ab14680598","SOURCE_DATE_EPOCH":1767798273}'
           printf "$J" > kernel-6.1/workspace_status.json
-          [ -d common ] && printf "$J" > common/workspace_status.json
-          export KLEAF_EXTRA_GIT_PROJECTS="kernel-6.1"
           # 🔑 O Bazel escreve em ~/.cache/bazel POR PADRÃO, que fica na RAIZ — e foi isso que
           #    encheu o disco (100%, 426 MB de sobra) no run 32606253916. `--output_user_root`
           #    manda a saída para o volume do maximize-build-space, onde está o espaço livre.
           BZ=/mnt/build/bazel-root; mkdir -p "$BZ"
-          # --config=stamp: SEM ele o Kleaf hardcoda "-maybe-dirty" + SOURCE_DATE_EPOCH=0 (stamp.bzl
-          # l.62/236) e NEM consulta o workspace_status.json. ERA O LEVER QUE FALTAVA nos builds 1-3.
-          tools/bazel --output_user_root="$BZ" run --config=stamp "${{ inputs.target }}" -- --dist_dir="$PWD/dist" 2>&1 | tail -60
+          tools/bazel --output_user_root="$BZ" run --config=stamp --extra_git_project=kernel-6.1 "${{ inputs.target }}" -- --dist_dir="$PWD/dist" 2>&1 | tail -60
           echo "--- disco depois do build:"; df -h / /mnt/build | tail -2
 
       - name: O que saiu
