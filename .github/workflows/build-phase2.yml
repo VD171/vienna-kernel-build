@@ -87,13 +87,21 @@ jobs:
           #     depende de o setlocalversion NAO achar git).
           ( cd kernel-6.1 && curl -LSs "https://raw.githubusercontent.com/pershoot/KernelSU-Next/${KSUN_SHA}/kernel/setup.sh" | bash -s next-susfs )
           echo "--- KSU integrado?"; ls -d kernel-6.1/KernelSU-Next kernel-6.1/drivers/kernelsu 2>/dev/null || echo "(checar setup.sh)"
-          # (3) patch SUSFS no kernel — MEDIR o conflito (o kernel-mtk e fork; pode rejeitar). NAO mascarar.
-          if ( cd kernel-6.1 && patch -p1 --no-backup-if-mismatch --force < ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ); then
-            echo "✅ SUSFS patch aplicou limpo"
+          # (3) patch SUSFS no kernel. Build 1 (sonda) mediu: aplica TUDO menos 1 hunk — o include de
+          #     fs/proc/base.c (a MTK reordenou includes ali). Aplico com --force e conserto SO esse
+          #     reject conhecido; se aparecer QUALQUER outro, aborto (nao mascaro conflito novo).
+          ( cd kernel-6.1 && patch -p1 --no-backup-if-mismatch --force < ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ) || true
+          REJS=$(cd kernel-6.1 && find . -name '*.rej' | sort)
+          if [ -z "$REJS" ]; then
+            echo "✅ SUSFS patch aplicou limpo (sem rejects)"
+          elif [ "$REJS" = "./fs/proc/base.c.rej" ]; then
+            echo "🟡 unico reject esperado (fs/proc/base.c include) — inserindo o include manualmente:"
+            sed -i '0,/#include "internal.h"/s//#if defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)\n#include <linux\/susfs_def.h>\n#endif\n\n#include "internal.h"/' kernel-6.1/fs/proc/base.c
+            rm kernel-6.1/fs/proc/base.c.rej
+            grep -q 'linux/susfs_def.h' kernel-6.1/fs/proc/base.c && echo "✅ include inserido" || { echo "🔴 insercao falhou"; exit 1; }
           else
-            echo "🔴 SUSFS patch CONFLITOU — .rej abaixo (isto decide Path A vs Path B):"
-            find kernel-6.1 -name '*.rej' | sort | while read r; do echo "===== $r"; sed -n '1,25p' "$r"; done
-            echo "--- resumo: $(find kernel-6.1 -name '*.rej' | wc -l) arquivos com reject"
+            echo "🔴 rejects INESPERADOS (nao so o base.c) — abortar e reavaliar:"
+            echo "$REJS"; ( cd kernel-6.1 && find . -name '*.rej' -exec sh -c 'echo "== $1"; sed -n "1,25p" "$1"' _ {} \; )
             exit 1
           fi
 
