@@ -84,6 +84,12 @@ jobs:
           for c in moto-mgk_64_k61 moto-mgk_64_k61-vienna moto-mgk_64_k61-df; do
             cp -v "arch/arm64/configs/ext_config/$c.config" kernel/configs/
           done
+          # Overlay VD: desliga o LOCALVERSION_AUTO SO no build (o defconfig da MTK poe =y). Assim o
+          # setlocalversion do Kbuild pula a linha 155 e NAO le o .scmversion (fim do dup do build 8).
+          # O workspace_status usa o fixture proprio do Kleaf (auto.conf AUTO=y fixo), entao continua
+          # lendo o .scmversion e produzindo -gd77c4cd65aed-ab14680598 — os dois ficam desacoplados.
+          printf '# CONFIG_LOCALVERSION_AUTO is not set\n' > kernel/configs/vd-noscmdup.config
+          cat kernel/configs/vd-noscmdup.config
           test -f arch/arm64/configs/mgk_64_k61_defconfig && echo "defconfig OK"
 
       - name: O TESTE — o alvo GKI compila com a Linux version EXATA?
@@ -91,7 +97,7 @@ jobs:
         env:
           BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN: 1
           KERNEL_VERSION: kernel-6.1
-          DEFCONFIG_OVERLAYS: "moto-mgk_64_k61.config moto-mgk_64_k61-vienna.config moto-mgk_64_k61-df.config"
+          DEFCONFIG_OVERLAYS: "moto-mgk_64_k61.config moto-mgk_64_k61-vienna.config moto-mgk_64_k61-df.config vd-noscmdup.config"
           # ↓ o workspace_status_stamp.py roda no ENV DO CLIENTE do bazel (bazel.py copia os.environ,
           #   l.82/614) e le estas duas direto (l.99-100 e l.357):
           BUILD_NUMBER: "14680598"          # → sufixo -ab14680598
