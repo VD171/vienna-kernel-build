@@ -156,5 +156,7 @@ jobs:
           path: |
             /mnt/build/ws/dist/Image*
             /mnt/build/ws/dist/*.gz
+            /mnt/build/ws/dist/Module.symvers
+            /mnt/build/ws/dist/*symvers*
           if-no-files-found: warn
           retention-days: 14
