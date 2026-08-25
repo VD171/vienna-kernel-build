@@ -9,9 +9,9 @@ name: build vienna GKI LIMPO (common puro, Path B)
 on:
   workflow_dispatch:
     inputs:
-      gki_commit:
-        description: "Commit do GKI common (o do stock)"
-        default: "d77c4cd65aed"
+      gki_tag:
+        description: "Tag do GKI common do stock (= d77c4cd65aed, 6.1.141)"
+        default: "android14-6.1-2025-07_r11"
       manifest_branch:
         default: "common-android14-6.1"
       target:
@@ -63,21 +63,20 @@ jobs:
           echo "--- WORKSPACE existe (a do AOSP, NAO a da MTK):"; ls -la WORKSPACE 2>/dev/null
           du -sh .; df -h / /mnt/build | tail -2
 
-      - name: Checkout do common no commit do STOCK (${{ inputs.gki_commit }})
+      - name: Checkout do common na TAG do STOCK (${{ inputs.gki_tag }} = d77c4cd65aed, 6.1.141)
         run: |
           cd "$WS/common"
           echo "HEAD antes: $(git rev-parse --short HEAD)"
-          # googlesource NAO deixa fetch de SHA arbitrario -> aprofundar o historico raso ate o commit
-          # (d77c4cd65aed e ~jan/2026, HEAD e ~ago/2026). --deepen incremental, fallback --unshallow.
-          if ! git cat-file -e "${{ inputs.gki_commit }}^{commit}" 2>/dev/null; then
-            git fetch --deepen=20000 origin 2>&1 | tail -3 || true
-          fi
-          if ! git cat-file -e "${{ inputs.gki_commit }}^{commit}" 2>/dev/null; then
-            echo "deepen nao bastou, --unshallow..."; git fetch --unshallow origin 2>&1 | tail -3 || true
-          fi
-          git checkout -q "${{ inputs.gki_commit }}" || { echo "🔴 commit ${{ inputs.gki_commit }} nao alcancado"; exit 1; }
-          echo "HEAD agora: $(git rev-parse --short=12 HEAD)  (deve ser ${{ inputs.gki_commit }})"
-          echo "arvore limpa? (sem -dirty):"; git status --porcelain | head
+          # d77c4cd65aed NAO e ancestral do common-android14-6.1 HEAD -> e a TAG android14-6.1-2025-07_r11
+          # (branch KMI-frozen 2025-07, release r11, SUBLEVEL=141). googlesource nao faz fetch de SHA
+          # arbitrario, mas TAG e fetchable com --depth=1.
+          git fetch --depth=1 https://android.googlesource.com/kernel/common "refs/tags/${{ inputs.gki_tag }}"
+          git checkout -q FETCH_HEAD
+          H=$(git rev-parse HEAD)
+          echo "HEAD agora: $H"
+          [ "$H" = "d77c4cd65aedc9148e9db607aef6901cabfb62e5" ] || { echo "🔴 SHA nao bate (esperado d77c4cd65aed...)"; exit 1; }
+          echo "SUBLEVEL:"; grep -E '^SUBLEVEL' Makefile
+          echo "arvore limpa?"; git status --porcelain | head
           echo "--- scmversion natural:"; ./scripts/setlocalversion 2>/dev/null || true
 
       - name: Compilar GKI common PELADO (sem KSU/SUSFS)
