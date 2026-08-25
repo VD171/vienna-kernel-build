@@ -102,8 +102,14 @@ jobs:
           # e SEM git dava maybe-dirty + timestamp 1970. O override oficial e o workspace_status.json no
           # projeto: SCMVERSION (string completa c/ o -ab) + SOURCE_DATE_EPOCH (int). Alvo do build:
           # 6.1.141-android14-11-gd77c4cd65aed-ab14680598 / Wed Jan 7 15:04:33 UTC 2026.
-          printf '{"SCMVERSION":"-gd77c4cd65aed-ab14680598","SOURCE_DATE_EPOCH":1767798273}' > kernel-6.1/workspace_status.json
-          export KLEAF_EXTRA_GIT_PROJECTS="kernel-6.1"   # registra o kernel-6.1 -> o override acima passa a valer
+          # O override so vale para PROJETO BAZEL MAPEADO (get_execroot_rel_paths). O kernel-6.1 e
+          # tarball avulso (nao mapeado) -> build 4 deu scmversion vazio. O common/ veio do repo sync
+          # (projeto do manifesto, MAPEADO) e p/ GKI (kernel_aarch64) o vmlinux e o kernel do common.
+          # Poe o override nos dois (o KERNEL_DIR provavel e o common):
+          J='{"SCMVERSION":"-gd77c4cd65aed-ab14680598","SOURCE_DATE_EPOCH":1767798273}'
+          printf "$J" > kernel-6.1/workspace_status.json
+          [ -d common ] && printf "$J" > common/workspace_status.json
+          export KLEAF_EXTRA_GIT_PROJECTS="kernel-6.1"
           # 🔑 O Bazel escreve em ~/.cache/bazel POR PADRÃO, que fica na RAIZ — e foi isso que
           #    encheu o disco (100%, 426 MB de sobra) no run 32606253916. `--output_user_root`
           #    manda a saída para o volume do maximize-build-space, onde está o espaço livre.
