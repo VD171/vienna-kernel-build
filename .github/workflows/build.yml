@@ -108,7 +108,9 @@ jobs:
           #    encheu o disco (100%, 426 MB de sobra) no run 32606253916. `--output_user_root`
           #    manda a saída para o volume do maximize-build-space, onde está o espaço livre.
           BZ=/mnt/build/bazel-root; mkdir -p "$BZ"
-          tools/bazel --output_user_root="$BZ" run "${{ inputs.target }}" -- --dist_dir="$PWD/dist" 2>&1 | tail -60
+          # --config=stamp: SEM ele o Kleaf hardcoda "-maybe-dirty" + SOURCE_DATE_EPOCH=0 (stamp.bzl
+          # l.62/236) e NEM consulta o workspace_status.json. ERA O LEVER QUE FALTAVA nos builds 1-3.
+          tools/bazel --output_user_root="$BZ" run --config=stamp "${{ inputs.target }}" -- --dist_dir="$PWD/dist" 2>&1 | tail -60
           echo "--- disco depois do build:"; df -h / /mnt/build | tail -2
 
       - name: O que saiu
