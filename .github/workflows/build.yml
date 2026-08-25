@@ -91,11 +91,14 @@ jobs:
           printf '# CONFIG_LOCALVERSION_AUTO is not set\n' > kernel/configs/vd-noscmdup.config
           cat kernel/configs/vd-noscmdup.config
           test -f arch/arm64/configs/mgk_64_k61_defconfig && echo "defconfig OK"
-          # 🔒 A prova de bala (build 9: o overlay sozinho NAO desligou o AUTO; gki_defconfig nem menciona
-          #    LOCALVERSION_AUTO -> vem do default `y` do Kconfig). Desliga em 3 frentes:
-          #  (a) na BASE que o `make gki_defconfig` usa;
-          echo '# CONFIG_LOCALVERSION_AUTO is not set' >> "$WS/kernel-6.1/arch/arm64/configs/gki_defconfig"
-          #  (b) zera QUALQUER =y explicito em todos os configs das duas arvores;
+          # 🔒 Build 9: overlay sozinho NAO desligou o AUTO. Build 10: editar o gki_defconfig QUEBRA o
+          #    check do GKI ("ERROR: savedefconfig does not match gki_defconfig"). A via SEGURA e mudar o
+          #    DEFAULT do Kconfig — savedefconfig-safe: com default n e nada setando =y, o symbol fica no
+          #    default -> savedefconfig o OMITE -> continua batendo com o gki_defconfig (que tambem omite).
+          #  (a) default y -> n no config LOCALVERSION_AUTO do init/Kconfig;
+          sed -i '/^config LOCALVERSION_AUTO$/,/^config /{s/^\([[:space:]]*\)default y$/\1default n/}' "$WS/kernel-6.1/init/Kconfig"
+          grep -A3 '^config LOCALVERSION_AUTO$' "$WS/kernel-6.1/init/Kconfig"
+          #  (b) zera QUALQUER =y explicito nos configs (NAO toca no gki_defconfig, que nao tem =y);
           grep -rl '^CONFIG_LOCALVERSION_AUTO=y' "$WS/kernel-6.1" "$WS/kernel_device_modules-6.1" 2>/dev/null \
             | xargs -r sed -i 's/^CONFIG_LOCALVERSION_AUTO=y/# CONFIG_LOCALVERSION_AUTO is not set/'
           #  (c) o overlay vd-noscmdup (ultimo da lista) — ja criado acima.
