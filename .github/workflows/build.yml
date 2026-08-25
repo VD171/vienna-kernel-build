@@ -110,7 +110,13 @@ jobs:
           #  3. --config=stamp: sem ele stamp.bzl (l.57-62/164-180) hardcoda -maybe-dirty + epoch 0.
           #  ⚠️ Esta branch NAO tem workspace_status.json NEM --extra_git_project (builds 2-6 usaram
           #     mecanismos do kleaf `main`, que nao existem aqui — dai o "Unrecognized option" do build 6).
+          #  4. .source_date_epoch_dir -> kernel-6.1: O LEVER FINAL (build 7 mostrou o WARNING "Can't
+          #     determine STABLE_SCMVERSIONS for kernel-6.1"). list_projects() so ve projetos do `repo`;
+          #     o kernel-6.1 (tarball) fica fora do mapa. O stamp.py (l.237) le este symlink e adiciona
+          #     o kernel_rel a all_projects -> ai o setlocalversion roda no kernel-6.1 e le o .scmversion,
+          #     e a chave STABLE_SCMVERSIONS["kernel-6.1"] passa a existir com -gd77c4cd65aed-ab14680598.
           echo "-gd77c4cd65aed" > kernel-6.1/.scmversion
+          ln -sfn kernel-6.1 .source_date_epoch_dir
           # 🔑 --output_user_root manda a saida do Bazel pro volume do maximize-build-space (a raiz enche).
           BZ=/mnt/build/bazel-root; mkdir -p "$BZ"
           tools/bazel --output_user_root="$BZ" run --config=stamp --nokleaf_localversion "${{ inputs.target }}" -- --dist_dir="$PWD/dist" 2>&1 | tail -80
