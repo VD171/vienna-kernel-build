@@ -89,12 +89,19 @@ jobs:
         id: build
         env:
           BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN: 1
-          SOURCE_DATE_EPOCH: 0
+          # Receita para REPRODUZIR a Linux version EXATA do W1UIS36H.39-17-8 (doc §9.7):
+          # timestamp e BUILD_NUMBER daqui; o scmversion via .scmversion (passo do run).
+          SOURCE_DATE_EPOCH: 1767798273
+          KBUILD_BUILD_TIMESTAMP: "Wed Jan  7 15:04:33 UTC 2026"
+          BUILD_NUMBER: "14680598"
           KERNEL_VERSION: kernel-6.1
           DEFCONFIG_OVERLAYS: "moto-mgk_64_k61.config moto-mgk_64_k61-vienna.config moto-mgk_64_k61-df.config"
         run: |
           cd "$WS"
           mkdir -p ../vendor/mediatek/kernel_modules   # stub: só para o WORKSPACE carregar
+          # scmversion EXATO (o tarball da Motorola não tem .git -> setlocalversion daria -maybe-dirty;
+          # d77c4cd65aed é o commit do GKI common em que a build W1UIS36H.39-17-8 se baseia, doc §9.7):
+          echo "-gd77c4cd65aed" > kernel-6.1/.scmversion
           # 🔑 O Bazel escreve em ~/.cache/bazel POR PADRÃO, que fica na RAIZ — e foi isso que
           #    encheu o disco (100%, 426 MB de sobra) no run 32606253916. `--output_user_root`
           #    manda a saída para o volume do maximize-build-space, onde está o espaço livre.
