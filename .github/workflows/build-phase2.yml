@@ -36,10 +36,18 @@ jobs:
           remove-codeql: 'true'
           remove-docker-images: 'true'
 
-      - name: Preparar o volume
+      - name: Preparar o volume + SWAP (anti-OOM no LTO)
         run: |
           sudo chown -R runner:runner /mnt/build
           echo "WS=/mnt/build/ws" >> $GITHUB_ENV
+          # 🧠 fase2-3 (run 32831079382) morreu no LTO link ~40min: "runner lost communication"
+          #    = OOM (KSU+SUSFS -> vmlinux maior -> pico de LTO estoura os 7,8 GB). Swap de 24 GB no
+          #    volume grande absorve o pico e PRESERVA o LTO full (stock-identico). Custa I/O, nao string.
+          sudo fallocate -l 24G /mnt/build/swapfile
+          sudo chmod 600 /mnt/build/swapfile
+          sudo mkswap /mnt/build/swapfile >/dev/null
+          sudo swapon /mnt/build/swapfile
+          echo "--- memoria + swap:"; free -h
           df -h / /mnt/build | tail -2
 
       - name: Dependências + repo
