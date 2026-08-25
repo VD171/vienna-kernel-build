@@ -91,6 +91,14 @@ jobs:
           printf '# CONFIG_LOCALVERSION_AUTO is not set\n' > kernel/configs/vd-noscmdup.config
           cat kernel/configs/vd-noscmdup.config
           test -f arch/arm64/configs/mgk_64_k61_defconfig && echo "defconfig OK"
+          # 🔒 A prova de bala (build 9: o overlay sozinho NAO desligou o AUTO; gki_defconfig nem menciona
+          #    LOCALVERSION_AUTO -> vem do default `y` do Kconfig). Desliga em 3 frentes:
+          #  (a) na BASE que o `make gki_defconfig` usa;
+          echo '# CONFIG_LOCALVERSION_AUTO is not set' >> "$WS/kernel-6.1/arch/arm64/configs/gki_defconfig"
+          #  (b) zera QUALQUER =y explicito em todos os configs das duas arvores;
+          grep -rl '^CONFIG_LOCALVERSION_AUTO=y' "$WS/kernel-6.1" "$WS/kernel_device_modules-6.1" 2>/dev/null \
+            | xargs -r sed -i 's/^CONFIG_LOCALVERSION_AUTO=y/# CONFIG_LOCALVERSION_AUTO is not set/'
+          #  (c) o overlay vd-noscmdup (ultimo da lista) — ja criado acima.
 
       - name: O TESTE — o alvo GKI compila com a Linux version EXATA?
         id: build
@@ -129,6 +137,11 @@ jobs:
           rc=${PIPESTATUS[0]}
           echo "===== GROUND TRUTH: STABLE_SCMVERSIONS / EPOCHS que o Kleaf computou ====="
           cat bazel-out/stable-status.txt 2>/dev/null | grep -E 'SCMVERSION|SOURCE_DATE' || echo "(sem stable-status.txt)"
+          echo "===== CONFIG_LOCALVERSION_AUTO no .config final (medir, nao supor) ====="
+          find /mnt/build -name '.config' 2>/dev/null | xargs -r grep -l 'CONFIG_LOCALVERSION' 2>/dev/null | head -2 \
+            | xargs -r grep -H 'LOCALVERSION_AUTO\|^CONFIG_LOCALVERSION=' 2>/dev/null || echo "(nao achou .config)"
+          echo "===== localversion files gerados (o que o Kbuild concatena) ====="
+          find /mnt/build -name 'localversion' 2>/dev/null | head -8 | while read f; do echo "$f => [$(cat "$f" 2>/dev/null)]"; done
           echo "--- disco depois do build:"; df -h / /mnt/build | tail -2
           exit $rc
 
