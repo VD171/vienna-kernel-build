@@ -112,17 +112,12 @@ jobs:
           for c in moto-mgk_64_k61 moto-mgk_64_k61-vienna moto-mgk_64_k61-df; do
             cp -v "arch/arm64/configs/ext_config/$c.config" kernel/configs/
           done
-          # KSU + SUSFS ligados direto no gki_defconfig (o `make gki_defconfig` le primeiro; sao =y
-          # nao-default, entao o olddefconfig os mantem, e no alvo _dist nao ha check de savedefconfig).
-          GKI="$WS/kernel-6.1/arch/arm64/configs/gki_defconfig"
-          for c in CONFIG_KSU=y CONFIG_KSU_SUSFS=y CONFIG_KSU_SUSFS_SUS_PATH=y \
-                   CONFIG_KSU_SUSFS_SUS_MOUNT=y CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y \
-                   CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y CONFIG_KSU_SUSFS_SUS_KSTAT=y \
-                   CONFIG_KSU_SUSFS_TRY_UMOUNT=y CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y \
-                   CONFIG_KSU_SUSFS_SPOOF_UNAME=y CONFIG_KSU_SUSFS_ENABLE_LOG=y \
-                   CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y \
-                   CONFIG_KSU_SUSFS_OPEN_REDIRECT=y; do echo "$c"; done >> "$GKI"
-          echo "--- ultimas linhas do gki_defconfig:"; tail -16 "$GKI"
+          # 🎯 NAO tocar no gki_defconfig (build 2 quebrou o savedefconfig por eu ter posto os =y explicitos:
+          #    o alvo _dist TAMBEM roda o check savedefconfig==gki_defconfig). MEDIDO no Kconfig do KSU-Next
+          #    (pershoot @ bfc9d18): `config KSU` = default y, e KSU_SUSFS + todos os sub-options = default y.
+          #    Entao o olddefconfig liga tudo sozinho, e o savedefconfig OMITE (sao default) -> check passa.
+          echo "--- KSU-Next presente na arvore?"; ls -d "$WS/kernel-6.1/KernelSU-Next" "$WS/kernel-6.1/drivers/kernelsu" 2>/dev/null || echo "(checar setup.sh)"
+          grep -rniE 'kernelsu|source.*KSU' "$WS/kernel-6.1/drivers/Kconfig" 2>/dev/null | head -3 || true
           # patch do vermagic (§9.7): .scmversion lido so no env do cliente (workspace_status), nao no Kbuild
           sed -i 's/if test -e .scmversion; then/if test -n "$VD_WS_SCM" \&\& test -e .scmversion; then/' \
             "$WS/kernel-6.1/scripts/setlocalversion"
