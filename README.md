@@ -5,17 +5,23 @@
 Reproducible **kernel build for the Motorola Edge 60 Neo** (`vienna`, MT6878 / Dimensity 7400)
 on GitHub Actions, straight from Motorola's GPL release.
 
-> ⚠️ **This does NOT give you root.** It builds the **stock GKI kernel** from source. There is no
-> KernelSU in it. It exists to prove the build recipe works. Rooting the Edge 60 Neo is done with
-> **LKM patched into `init_boot`**, which needs no kernel build at all.
+> ⚠️ **For most people, you do NOT need this to get root.** Rooting the Edge 60 Neo is done with
+> **KernelSU LKM patched into `init_boot`**, which needs no kernel build at all. The default workflow
+> here builds the **stock GKI kernel** (no KernelSU) and exists to prove the recipe is byte exact.
+>
+> 🆕 **Phase 2 (built-in root) now works too.** A second workflow builds **KernelSU-Next OFFICIAL,
+> compiled into the kernel** (not an LKM), keeping the stock `Linux version` byte for byte. It **boots
+> and was validated on a real device**. See [Phase 2](#phase-2-built-in-ksu-next-the-part-that-took-the-most-work) below.
 
 ## Status
 
 | What | Status |
 |---|---|
-| `Image` builds | ✅ 34 MB, in **36 min** on a stock runner (2 cores, 7.8 GB RAM) |
-| Device modules | ❌ blocked by MediaTek's proprietary `vendor/mediatek` |
-| Boots on device | ❓ **never tested**. A built `Image` proves the recipe, not the boot |
+| Stock `Image` builds | ✅ 34 MB, in **36 min** on a stock runner (2 cores, 7.8 GB RAM) |
+| Stock `Linux version` | ✅ reproduced **byte for byte** vs the factory build |
+| Device modules | ✅ **stock `vendor_dlkm` reused** (GKI/KMI, same vermagic); building them from source is blocked by the proprietary `vendor/mediatek`, and is not needed |
+| Phase 2: KSU-Next OFFICIAL built-in | ✅ builds and **boots on device**; 424 vendor modules load with **0 vermagic error** |
+| Boots on device | ✅ validated on the maintainer's device (stock and Phase 2) |
 
 ## The one thing this repo is worth reading for
 
@@ -53,6 +59,60 @@ That is 18 projects, and `tools/bazel` + `WORKSPACE` come **ready**, with no sym
 MediaTek's `WORKSPACE` declares `mgk_internal` / `mgk_ko` pointing at `../vendor/mediatek`, a
 **proprietary tree** nobody publishes. Create it **empty** and the GKI target still builds. Only the
 *device modules* are blocked.
+
+## Phase 2: built-in KSU-Next (the part that took the most work)
+
+Phase 1 is stock. Phase 2 compiles **KernelSU-Next OFFICIAL** (from `KernelSU-Next/KernelSU-Next`,
+the rifsxd project) **into the kernel**, so `lsmod | grep kernelsu` is empty and the driver rides
+inside `vmlinux`. Workflow: **`build-gki-ksu.yml`**. It keeps the byte exact stock `Linux version`
+so the factory `vendor_dlkm` modules still load.
+
+### 🪤 The trap that cost days: a booting `Image` is not a booting kernel
+
+Every KSU + kernel build we made on the **MediaTek tree** compiled clean, reproduced the exact
+`Linux version`, and then **panicked at the first `execve` of init**, in the page allocator
+(`clear_page` hitting a poison address, deterministic). We proved it was **not** KSU, **not** SUSFS,
+**not** the config, and **not** the page size, by bisecting:
+
+| Build | KSU | SUSFS | Result |
+|---|---|---|---|
+| Phase 2 (full) | yes | yes | panic at init |
+| minus manual hooks | yes | yes | **same** panic |
+| stock, no KSU/SUSFS, MTK tree | no | no | **same** panic |
+
+Same panic with zero KSU and zero SUSFS meant the cause was the **build tree**, not what we added.
+The embedded `.config` of our `Image` matched the device's `/proc/config.gz` to ~100% (one
+irrelevant symbol), so it was not the config either. The one non standard variable left was the
+**MediaTek `WORKSPACE`** (`bazel_mgk_rules` overriding the AOSP one).
+
+### ✅ The fix: build the pure AOSP GKI `common`, not the MTK tree
+
+Check out `common` at the exact stock tag and build it with the **stock AOSP `WORKSPACE`**, target
+`//common:kernel_aarch64_dist`:
+
+```bash
+cd common
+git fetch --depth=1 https://android.googlesource.com/kernel/common refs/tags/android14-6.1-2025-07_r11
+git checkout FETCH_HEAD   # SUBLEVEL=141, the stock kernel's exact point
+```
+
+The pure `common` **booted**. Then `common` + KSU-Next built-in **booted**, reached Android, and
+**424 vendor modules loaded with 0 vermagic error**, which is the real KMI de-risk: the stock
+`vendor_dlkm` accepts our kernel. Bonus: on this path the vermagic comes out naturally from
+`git describe`, so the `.scmversion` hack the stock recipe needs is unnecessary.
+
+### Why no SUSFS
+
+The maintainer chose **no SUSFS**, on purpose. Rationale: keeping the stack **100% official** (the
+KernelSU-Next glue for SUSFS lives only in third party forks, and the manager must stay aligned with
+the driver on the latest release). Without SUSFS the build is pure official KSU-Next, and the app
+level hiding it would add is largely moot anyway, because SELinux already denies `untrusted_app`
+access to `/proc/modules`. Runtime hiding is handled in userspace instead.
+
+### 🤖 Autobuild
+
+`ksun-autobuild.yml` runs daily. When KernelSU-Next publishes a new release it bumps the pinned ref
+and rebuilds the built-in kernel automatically (artifact only, it never flashes anything).
 
 ## Usage
 
