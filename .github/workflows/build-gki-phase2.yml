@@ -83,10 +83,17 @@ jobs:
           cp -v susfs4ksu/kernel_patches/include/linux/susfs_def.h common/include/linux/
           # (3) patch SUSFS no kernel (50_). Em common PURO deve aplicar LIMPO (o reject do base.c era
           #     artefato do fork MTK). Se rejeitar, aborta e mostra.
-          ( cd common && patch -p1 --no-backup-if-mismatch < ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ) || true
-          R=$(cd common && find . -name '*.rej')
-          [ -z "$R" ] || { echo "🔴 50_ rejeitou no common:"; (cd common && find . -name '*.rej' -exec sh -c 'echo "== $1"; sed -n 1,25p "$1"' _ {} \;); exit 1; }
-          echo "✅ 50_ limpo"
+          ( cd common && patch -p1 --no-backup-if-mismatch --force < ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ) || true
+          R=$(cd common && find . -name '*.rej' | sort)
+          if [ -z "$R" ]; then echo "✅ 50_ limpo";
+          elif [ "$R" = "./fs/proc/base.c.rej" ]; then
+            echo "🟡 reject conhecido (fs/proc/base.c include) — inserindo manualmente:"
+            sed -i '0,/#include "internal.h"/s//#if defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)\n#include <linux\/susfs_def.h>\n#endif\n\n#include "internal.h"/' common/fs/proc/base.c
+            rm common/fs/proc/base.c.rej
+            grep -q 'linux/susfs_def.h' common/fs/proc/base.c && echo "✅ include inserido" || { echo "🔴 insercao falhou"; exit 1; }
+          else
+            echo "🔴 rejects 50_ INESPERADOS:"; (cd common && find . -name '*.rej' -exec sh -c 'echo "== $1"; sed -n 1,25p "$1"' _ {} \;); exit 1
+          fi
           # (4) manual hooks (60_)
           ( cd common && patch -p1 --no-backup-if-mismatch < ../susfs4ksu/kernel_patches/60_scope-minimized_manual_hooks.patch ) || true
           R6=$(cd common && find . -name '*.rej')
