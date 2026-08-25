@@ -74,10 +74,7 @@ jobs:
             https://github.com/MotorolaMobilityLLC/kernel-build-bazel_mgk_rules build/bazel_mgk_rules
           # o WORKSPACE do MTK substitui o do AOSP (define @mgk_info, mgk_internal, mgk_ko)
           cp -f build/bazel_mgk_rules/kleaf/bazel.WORKSPACE WORKSPACE
-          # git init no kernel-6.1: o Kleaf so aplica scmversion/override a PROJETO GIT reconhecido;
-          # sem isto o tarball cai no fallback maybe-dirty + 1970 (docs §9.7, builds 1-2). Commit vazio
-          # (nao versiona 80k arquivos): so precisa de um HEAD; o SCMVERSION real vem do workspace_status.json.
-          ( cd kernel-6.1 && git init -q && git -c user.email=ci@localhost -c user.name=ci commit -q --allow-empty -m stamp )
+          # (sem git init: a scmversion vem do .scmversion via setlocalversion, que nao precisa de git)
           du -sh .; df -h / /mnt/build | tail -2
 
       - name: Delta do vienna (overlays)
@@ -89,34 +86,39 @@ jobs:
           done
           test -f arch/arm64/configs/mgk_64_k61_defconfig && echo "defconfig OK"
 
-      - name: O TESTE — o alvo GKI compila sem vendor/mediatek?
+      - name: O TESTE — o alvo GKI compila com a Linux version EXATA?
         id: build
         env:
           BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN: 1
           KERNEL_VERSION: kernel-6.1
           DEFCONFIG_OVERLAYS: "moto-mgk_64_k61.config moto-mgk_64_k61-vienna.config moto-mgk_64_k61-df.config"
+          # ↓ o workspace_status_stamp.py roda no ENV DO CLIENTE do bazel (bazel.py copia os.environ,
+          #   l.82/614) e le estas duas direto (l.99-100 e l.357):
+          BUILD_NUMBER: "14680598"          # → sufixo -ab14680598
+          SOURCE_DATE_EPOCH: "1767798273"   # → Wed Jan  7 15:04:33 UTC 2026
         run: |
+          set -o pipefail   # sem isto o `| tail` mascara falha do bazel (build 6 deu "success" FALSO)
           cd "$WS"
           mkdir -p ../vendor/mediatek/kernel_modules   # stub: só para o WORKSPACE carregar
           # Linux version EXATA (doc §9.7). Alvo: 6.1.141-android14-11-gd77c4cd65aed-ab14680598
-          # / Wed Jan 7 15:04:33 UTC 2026. TRES levers, todos necessarios (fonte kleaf lido:
-          # workspace_status_stamp.py + bazel.py + stamp.bzl):
-          #  1. workspace_status.json no kernel-6.1: SCMVERSION (string c/ -ab) + SOURCE_DATE_EPOCH (int).
-          #  2. --extra_git_project=kernel-6.1 (FLAG do wrapper, NAO env): o kernel-6.1 e tarball fora
-          #     do manifesto repo; sem esta flag ele nunca entra em all_projects e o json nem e lido.
-          #     A env var KLEAF_EXTRA_GIT_PROJECTS NAO adianta -> o Bazel limpa o env do
-          #     workspace_status_command; so a flag popula a var (bazel.py l.508). Builds 3-5 usaram a
-          #     env var -> scmversion VAZIO + epoch 0. Este era o lever real que faltava.
-          #  3. --config=stamp: sem ele stamp.bzl (l.62/236) hardcoda -maybe-dirty + epoch 0 e nem
-          #     consulta o json. O lookup e STABLE_SCMVERSIONS["${KERNEL_DIR}"], e ${KERNEL_DIR}=kernel-6.1.
-          J='{"SCMVERSION":"-gd77c4cd65aed-ab14680598","SOURCE_DATE_EPOCH":1767798273}'
-          printf "$J" > kernel-6.1/workspace_status.json
-          # 🔑 O Bazel escreve em ~/.cache/bazel POR PADRÃO, que fica na RAIZ — e foi isso que
-          #    encheu o disco (100%, 426 MB de sobra) no run 32606253916. `--output_user_root`
-          #    manda a saída para o volume do maximize-build-space, onde está o espaço livre.
+          # / Wed Jan  7 15:04:33 UTC 2026. Receita da branch main-kernel-build-2023 (a que o repo sync
+          # traz), lida no fonte kleaf DESTA branch (bazel.py + workspace_status_stamp.py + stamp.bzl):
+          #  1. .scmversion: o scripts/setlocalversion le este arquivo verbatim -> -gd77c4cd65aed.
+          #  2. --nokleaf_localversion: o DEFAULT (--kleaf_localversion) usa git describe e IGNORA o
+          #     .scmversion (por isso builds 4-5 sairam com scmversion VAZIO). So --nokleaf_localversion
+          #     faz o stamp chamar setlocalversion -> le o .scmversion (stamp.py l.313-314).
+          #  3. --config=stamp: sem ele stamp.bzl (l.57-62/164-180) hardcoda -maybe-dirty + epoch 0.
+          #  ⚠️ Esta branch NAO tem workspace_status.json NEM --extra_git_project (builds 2-6 usaram
+          #     mecanismos do kleaf `main`, que nao existem aqui — dai o "Unrecognized option" do build 6).
+          echo "-gd77c4cd65aed" > kernel-6.1/.scmversion
+          # 🔑 --output_user_root manda a saida do Bazel pro volume do maximize-build-space (a raiz enche).
           BZ=/mnt/build/bazel-root; mkdir -p "$BZ"
-          tools/bazel --output_user_root="$BZ" run --config=stamp --extra_git_project=kernel-6.1 "${{ inputs.target }}" -- --dist_dir="$PWD/dist" 2>&1 | tail -60
+          tools/bazel --output_user_root="$BZ" run --config=stamp --nokleaf_localversion "${{ inputs.target }}" -- --dist_dir="$PWD/dist" 2>&1 | tail -80
+          rc=${PIPESTATUS[0]}
+          echo "===== GROUND TRUTH: STABLE_SCMVERSIONS / EPOCHS que o Kleaf computou ====="
+          cat bazel-out/stable-status.txt 2>/dev/null | grep -E 'SCMVERSION|SOURCE_DATE' || echo "(sem stable-status.txt)"
           echo "--- disco depois do build:"; df -h / /mnt/build | tail -2
+          exit $rc
 
       - name: O que saiu
         if: always()
