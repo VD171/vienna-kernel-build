@@ -78,34 +78,31 @@ jobs:
           cp -f build/bazel_mgk_rules/kleaf/bazel.WORKSPACE WORKSPACE
           du -sh .; df -h / /mnt/build | tail -2
 
-      - name: Fase 2 — integrar KSU-Next OFICIAL v3.3.0 + SUSFS (par COESO, pinado)
+      - name: Fase 2 — integrar KSU-Next (next-susfs) + SUSFS (par DATADO, pinado)
         run: |
           cd "$WS"
-          # 🔒 PINADO. Build 4 falhou porque o pershoot/KernelSU-Next `next-susfs` (HEAD bfc9d18) estava
-          #    a FRENTE de qualquer susfs publicado (core_hook.c usava DATA_ADB_*/CMD_SUSFS_* inexistentes).
-          #    Solucao: par COESO estavel = KSU-Next OFICIAL v3.3.0 (= a versao do aparelho) + os DOIS
-          #    patches do MESMO susfs release (10_ KSU-side + 50_ kernel) -> as APIs casam por construcao.
-          SUSFS_SHA=0ff932799d898366d57b3b5984d85cdbcfcfad0a   # simonpunk/susfs4ksu @ gki-android14-6.1
-          KSUN_TAG=v3.3.0                                       # KernelSU-Next/KernelSU-Next @ tag
-          git clone -q https://gitlab.com/simonpunk/susfs4ksu
+          # 🔒 PINADO. A saga do pareamento (builds 4-5):
+          #   - build 4: pershoot next-susfs (nov/2025) + susfs do SIMONPUNK -> core_hook.c usava
+          #     DATA_ADB_*/CMD_SUSFS_* que o simonpunk NAO define. Fonte errada.
+          #   - build 5: KSU-Next OFICIAL v3.3.0 + patch 10_ do simonpunk -> dezenas de hunks rejeitados
+          #     (v3.3.0 divergiu do patch). Versoes desalinhadas.
+          #   ✅ MEDIDO: o next-susfs (HEAD bfc9d18 = nov/2025, susfs EMBUTIDO) casa com o snapshot
+          #     DATADO do PERSHOOT `gki-android14-6.1-lts-dev_122425` (dez/2025), que DEFINE exatamente
+          #     DATA_ADB_UMOUNT_FOR_ZYGOTE e CMD_SUSFS_HIDE_SUS_MNTS (conferido). LTS pq 6.1.141 e LTS.
+          #     next-susfs ja traz as hooks -> NAO precisa do 10_.
+          SUSFS_SHA=d961d86cc30260fcc26d81105bddeb5f51c67ce5   # pershoot/susfs4ksu @ gki-android14-6.1-lts-dev_122425
+          KSUN_SHA=bfc9d1805b653b44151bebfea79592a8da4c3017    # pershoot/KernelSU-Next @ next-susfs (susfs embutido)
+          git clone -q https://gitlab.com/pershoot/susfs4ksu
           ( cd susfs4ksu && git checkout -q "$SUSFS_SHA" )
-          # (1) KSU-Next oficial v3.3.0. O setup.sh faz `git checkout v3.3.0` (pinado), clona em
-          #     kernel-6.1/KernelSU-Next e symlinka drivers/kernelsu. NAO faco git init no kernel-6.1
-          #     (senao o Kbuild git-describe sujaria o vermagic — a receita §9.7 depende disso).
-          ( cd kernel-6.1 && curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/${KSUN_TAG}/kernel/setup.sh" | bash -s "$KSUN_TAG" )
-          test -d kernel-6.1/KernelSU-Next || { echo "🔴 setup.sh nao criou KernelSU-Next"; exit 1; }
-          echo "--- KSU-Next versao integrada:"; ( cd kernel-6.1/KernelSU-Next && git describe --tags 2>/dev/null || echo "?" )
-          # (2) patch KSU-side do SUSFS (10_) — do MESMO release susfs. O oficial v3.3.0 NAO tem susfs
-          #     nativo; este patch adiciona CONFIG_KSU_SUSFS* (default y) + as hooks que usam susfs.c.
-          ( cd kernel-6.1/KernelSU-Next && patch -p1 --no-backup-if-mismatch --force < ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ) || true
-          KREJ=$(cd kernel-6.1/KernelSU-Next && find . -name '*.rej')
-          if [ -z "$KREJ" ]; then echo "✅ 10_ (KSU-side) aplicou limpo";
-          else echo "🔴 10_ rejeitou (KSU-Next v3.3.0 divergiu do patch):"; ( cd kernel-6.1/KernelSU-Next && find . -name '*.rej' -exec sh -c 'echo "== $1"; sed -n "1,30p" "$1"' _ {} \; ); exit 1; fi
-          # (3) arquivos SUSFS no kernel
+          # (1) KSU-Next next-susfs: setup.sh integra o driver (susfs ja embutido). NAO faco git init no
+          #     kernel-6.1 (senao o Kbuild git-describe sujaria o vermagic — a receita §9.7 depende disso).
+          ( cd kernel-6.1 && curl -LSs "https://raw.githubusercontent.com/pershoot/KernelSU-Next/${KSUN_SHA}/kernel/setup.sh" | bash -s next-susfs )
+          test -d kernel-6.1/KernelSU-Next || ls -d kernel-6.1/drivers/kernelsu 2>/dev/null || { echo "🔴 setup.sh nao integrou o KSU-Next"; exit 1; }
+          # (2) arquivos SUSFS no kernel (do MESMO snapshot que define os simbolos que o next-susfs usa)
           cp -v susfs4ksu/kernel_patches/fs/susfs.c                kernel-6.1/fs/
           cp -v susfs4ksu/kernel_patches/include/linux/susfs.h     kernel-6.1/include/linux/
           cp -v susfs4ksu/kernel_patches/include/linux/susfs_def.h kernel-6.1/include/linux/
-          # (4) patch SUSFS no kernel (50_) — conserto SO o reject conhecido (include em fs/proc/base.c).
+          # (3) patch SUSFS no kernel (50_) — conserto SO o reject conhecido (include em fs/proc/base.c).
           ( cd kernel-6.1 && patch -p1 --no-backup-if-mismatch --force < ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ) || true
           REJS=$(cd kernel-6.1 && find . -name '*.rej' | sort)
           if [ -z "$REJS" ]; then
@@ -120,7 +117,7 @@ jobs:
             echo "$REJS"; ( cd kernel-6.1 && find . -name '*.rej' -exec sh -c 'echo "== $1"; sed -n "1,25p" "$1"' _ {} \; )
             exit 1
           fi
-          echo "--- ✅ integração completa: KSU-Next v3.3.0 + SUSFS $SUSFS_SHA"
+          echo "--- ✅ integração completa: KSU-Next next-susfs $KSUN_SHA + SUSFS $SUSFS_SHA"
 
       - name: Delta do vienna + config KSU/SUSFS + patch do vermagic
         run: |
