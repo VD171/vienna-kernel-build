@@ -20,7 +20,8 @@ jobs:
     timeout-minutes: 350
     steps:
       - name: Specs
-        run: echo "cores: $(nproc)"; free -h | sed -n 2p; df -h / | tail -1
+        run: |
+          echo "cores $(nproc)"; free -h | sed -n 2p; df -h / | tail -1
 
       - name: Liberar disco
         uses: easimon/maximize-build-space@master
