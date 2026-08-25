@@ -117,7 +117,14 @@ jobs:
             echo "$REJS"; ( cd kernel-6.1 && find . -name '*.rej' -exec sh -c 'echo "== $1"; sed -n "1,25p" "$1"' _ {} \; )
             exit 1
           fi
-          echo "--- ✅ integração completa: KSU-Next next-susfs $KSUN_SHA + SUSFS $SUSFS_SHA"
+          # (4) manual hooks do KSU (60_) — liga ksu_handle_* nas syscalls (fs/exec.c, open.c, stat.c,
+          #     read_write.c, input.c). SEM isto o KSU compila mas NAO intercepta (setup.sh escolheu
+          #     "manual hooks"). Toca fs/ que o 50_ e a MTK tambem mexem -> pode conflitar; relato o rej.
+          ( cd kernel-6.1 && patch -p1 --no-backup-if-mismatch --force < ../susfs4ksu/kernel_patches/60_scope-minimized_manual_hooks.patch ) || true
+          H60=$(cd kernel-6.1 && find . -name '*.rej')
+          if [ -z "$H60" ]; then echo "✅ 60_ (manual hooks) aplicou limpo";
+          else echo "🟡 60_ com rejects (fs/ forkado pela MTK) — mostrando p/ conserto:"; ( cd kernel-6.1 && find . -name '*.rej' -exec sh -c 'echo "== $1"; sed -n "1,40p" "$1"' _ {} \; ); exit 1; fi
+          echo "--- ✅ integração completa: KSU-Next next-susfs $KSUN_SHA + SUSFS $SUSFS_SHA + manual hooks"
 
       - name: Delta do vienna + config KSU/SUSFS + patch do vermagic
         run: |
@@ -181,5 +188,8 @@ jobs:
           path: |
             /mnt/build/ws/dist/Image*
             /mnt/build/ws/dist/*.gz
+            /mnt/build/ws/dist/Module.symvers
+            /mnt/build/ws/dist/*symvers*
+            /mnt/build/ws/dist/abi_symbollist*
           if-no-files-found: warn
           retention-days: 14
