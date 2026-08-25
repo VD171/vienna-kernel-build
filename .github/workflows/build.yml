@@ -84,35 +84,30 @@ jobs:
           for c in moto-mgk_64_k61 moto-mgk_64_k61-vienna moto-mgk_64_k61-df; do
             cp -v "arch/arm64/configs/ext_config/$c.config" kernel/configs/
           done
-          # Overlay VD: desliga o LOCALVERSION_AUTO SO no build (o defconfig da MTK poe =y). Assim o
-          # setlocalversion do Kbuild pula a linha 155 e NAO le o .scmversion (fim do dup do build 8).
-          # O workspace_status usa o fixture proprio do Kleaf (auto.conf AUTO=y fixo), entao continua
-          # lendo o .scmversion e produzindo -gd77c4cd65aed-ab14680598 — os dois ficam desacoplados.
-          printf '# CONFIG_LOCALVERSION_AUTO is not set\n' > kernel/configs/vd-noscmdup.config
-          cat kernel/configs/vd-noscmdup.config
           test -f arch/arm64/configs/mgk_64_k61_defconfig && echo "defconfig OK"
-          # 🔒 Build 9: overlay sozinho NAO desligou o AUTO. Build 10: editar o gki_defconfig QUEBRA o
-          #    check do GKI ("ERROR: savedefconfig does not match gki_defconfig"). A via SEGURA e mudar o
-          #    DEFAULT do Kconfig — savedefconfig-safe: com default n e nada setando =y, o symbol fica no
-          #    default -> savedefconfig o OMITE -> continua batendo com o gki_defconfig (que tambem omite).
-          #  (a) default y -> n no config LOCALVERSION_AUTO do init/Kconfig;
-          sed -i '/^config LOCALVERSION_AUTO$/,/^config /{s/^\([[:space:]]*\)default y$/\1default n/}' "$WS/kernel-6.1/init/Kconfig"
-          grep -A3 '^config LOCALVERSION_AUTO$' "$WS/kernel-6.1/init/Kconfig"
-          #  (b) zera QUALQUER =y explicito nos configs (NAO toca no gki_defconfig, que nao tem =y);
-          grep -rl '^CONFIG_LOCALVERSION_AUTO=y' "$WS/kernel-6.1" "$WS/kernel_device_modules-6.1" 2>/dev/null \
-            | xargs -r sed -i 's/^CONFIG_LOCALVERSION_AUTO=y/# CONFIG_LOCALVERSION_AUTO is not set/'
-          #  (c) o overlay vd-noscmdup (ultimo da lista) — ja criado acima.
+          # 🎯 O PATCH que mata o dup SEM mexer no AUTO (builds 9-11 provaram que desligar AUTO quebra o
+          #    GKI: CONFIG_MODULE_SCMVERSION depende de LOCALVERSION_AUTO -> "savedefconfig does not match").
+          #    Com AUTO=y (obrigatorio) o scm_version() do setlocalversion le o .scmversion em DOIS lugares:
+          #    o workspace_status (env do CLIENTE do bazel) e o Kbuild (env HERMETICO do Kleaf). Basta
+          #    gatilhar o read numa env var que SO o cliente ve (VD_WS_SCM): workspace_status le (gera o
+          #    -gd77c4cd65aed), Kbuild nao le (sem dup). O env hermetico do Kleaf nao passa VD_WS_SCM (foi
+          #    por isso que BUILD_NUMBER precisou do stamp). Nao toca em config -> nao mexe no ABI check.
+          sed -i 's/if test -e .scmversion; then/if test -n "$VD_WS_SCM" \&\& test -e .scmversion; then/' \
+            "$WS/kernel-6.1/scripts/setlocalversion"
+          grep -n 'VD_WS_SCM' "$WS/kernel-6.1/scripts/setlocalversion" || { echo "PATCH FALHOU"; exit 1; }
 
       - name: O TESTE — o alvo GKI compila com a Linux version EXATA?
         id: build
         env:
           BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN: 1
           KERNEL_VERSION: kernel-6.1
-          DEFCONFIG_OVERLAYS: "moto-mgk_64_k61.config moto-mgk_64_k61-vienna.config moto-mgk_64_k61-df.config vd-noscmdup.config"
+          DEFCONFIG_OVERLAYS: "moto-mgk_64_k61.config moto-mgk_64_k61-vienna.config moto-mgk_64_k61-df.config"
           # ↓ o workspace_status_stamp.py roda no ENV DO CLIENTE do bazel (bazel.py copia os.environ,
-          #   l.82/614) e le estas duas direto (l.99-100 e l.357):
+          #   l.82/614) e le estas direto (l.99-100 e l.357):
           BUILD_NUMBER: "14680598"          # → sufixo -ab14680598
           SOURCE_DATE_EPOCH: "1767798273"   # → Wed Jan  7 15:04:33 UTC 2026
+          VD_WS_SCM: "1"                     # → so o workspace_status (env do cliente) le o .scmversion;
+                                             #   o Kbuild (env hermetico) nao ve -> nao duplica o hash
         run: |
           set -o pipefail   # sem isto o `| tail` mascara falha do bazel (build 6 deu "success" FALSO)
           cd "$WS"
