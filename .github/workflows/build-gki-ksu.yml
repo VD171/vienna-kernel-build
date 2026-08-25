@@ -9,14 +9,16 @@ name: build vienna GKI + KSU-Next OFICIAL built-in (SEM susfs)
 on:
   workflow_dispatch:
     inputs:
-      gki_tag:
-        default: "android14-6.1-2025-07_r11"
-      manifest_branch:
-        default: "common-android14-6.1"
-      target:
-        default: "//common:kernel_aarch64_dist"
-      ksun_ref:
-        default: "v3.3.0"
+      gki_tag: { default: "android14-6.1-2025-07_r11" }
+      manifest_branch: { default: "common-android14-6.1" }
+      target: { default: "//common:kernel_aarch64_dist" }
+      ksun_ref: { default: "v3.3.0" }
+  workflow_call:
+    inputs:
+      gki_tag: { type: string, default: "android14-6.1-2025-07_r11" }
+      manifest_branch: { type: string, default: "common-android14-6.1" }
+      target: { type: string, default: "//common:kernel_aarch64_dist" }
+      ksun_ref: { type: string, default: "v3.3.0" }
 
 jobs:
   build:
