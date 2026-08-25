@@ -67,11 +67,17 @@ jobs:
         run: |
           cd "$WS/common"
           echo "HEAD antes: $(git rev-parse --short HEAD)"
-          git fetch --depth=1 https://android.googlesource.com/kernel/common "${{ inputs.gki_commit }}"
-          git checkout -q FETCH_HEAD
+          # googlesource NAO deixa fetch de SHA arbitrario -> aprofundar o historico raso ate o commit
+          # (d77c4cd65aed e ~jan/2026, HEAD e ~ago/2026). --deepen incremental, fallback --unshallow.
+          if ! git cat-file -e "${{ inputs.gki_commit }}^{commit}" 2>/dev/null; then
+            git fetch --deepen=20000 origin 2>&1 | tail -3 || true
+          fi
+          if ! git cat-file -e "${{ inputs.gki_commit }}^{commit}" 2>/dev/null; then
+            echo "deepen nao bastou, --unshallow..."; git fetch --unshallow origin 2>&1 | tail -3 || true
+          fi
+          git checkout -q "${{ inputs.gki_commit }}" || { echo "🔴 commit ${{ inputs.gki_commit }} nao alcancado"; exit 1; }
           echo "HEAD agora: $(git rev-parse --short=12 HEAD)  (deve ser ${{ inputs.gki_commit }})"
           echo "arvore limpa? (sem -dirty):"; git status --porcelain | head
-          # setlocalversion vai render -g<HEAD> naturalmente; conferir:
           echo "--- scmversion natural:"; ./scripts/setlocalversion 2>/dev/null || true
 
       - name: Compilar GKI common PELADO (sem KSU/SUSFS)
