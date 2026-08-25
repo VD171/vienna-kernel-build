@@ -1,0 +1,168 @@
+name: build vienna kernel PHASE 2 (KSU Next + SUSFS)
+
+# Fase 2: o mesmo GKI do build.yml, mas com KernelSU-Next + SUSFS integrados, e a Linux version
+# AINDA clonada byte a byte (§9.7) para stealth. Alvo = kernel_aarch64_DIST (nao _abi_dist: KSU/SUSFS
+# mudam o KMI e o check de ABI recusaria). Revisoes PINADAS (regra do dono).
+on:
+  workflow_dispatch:
+    inputs:
+      mmi_tag:
+        description: "Tag MMI da build Motorola"
+        default: "MMI-W1UIS36H.39-17-8"
+      manifest_branch:
+        description: "Branch do manifesto do kernel AOSP"
+        default: "common-android14-6.1"
+      target:
+        description: "Alvo Bazel (DIST, sem check de ABI)"
+        default: "//kernel-6.1:kernel_aarch64_dist"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - name: Specs do runner
+        run: |
+          echo "cores : $(nproc)"; free -h | sed -n 2p; df -h / | tail -1
+
+      - name: Liberar disco
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 2048
+          build-mount-path: '/mnt/build'
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
+
+      - name: Preparar o volume
+        run: |
+          sudo chown -R runner:runner /mnt/build
+          echo "WS=/mnt/build/ws" >> $GITHUB_ENV
+          df -h / /mnt/build | tail -2
+
+      - name: Dependências + repo
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq python3 git curl unzip zip rsync bc bison flex libssl-dev
+          mkdir -p ~/.local/bin
+          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo -o ~/.local/bin/repo
+          chmod +x ~/.local/bin/repo; echo "$HOME/.local/bin" >> $GITHUB_PATH
+          git config --global user.email ci@localhost; git config --global user.name ci
+
+      - name: repo sync (revisões PINADAS pelo manifesto)
+        run: |
+          mkdir -p "$WS" && cd "$WS"
+          repo init -q -u https://android.googlesource.com/kernel/manifest \
+                    -b "${{ inputs.manifest_branch }}" --depth=1
+          repo sync -c -j$(nproc) --no-tags --fail-fast
+          du -sh . ; df -h / /mnt/build | tail -2
+
+      - name: Árvores da Motorola na tag ${{ inputs.mmi_tag }}
+        run: |
+          cd "$WS"; T="${{ inputs.mmi_tag }}"
+          dl(){ curl -fsSL "https://codeload.github.com/MotorolaMobilityLLC/$1/tar.gz/refs/tags/$T" | tar -xz; }
+          dl kernel-mtk                        && mv "kernel-mtk-$T"                        kernel-6.1
+          dl kernel-kernel_device_modules-6.1  && mv "kernel-kernel_device_modules-6.1-$T"  kernel_device_modules-6.1
+          git clone -q --depth 1 -b "$T" \
+            https://github.com/MotorolaMobilityLLC/kernel-build-bazel_mgk_rules build/bazel_mgk_rules
+          cp -f build/bazel_mgk_rules/kleaf/bazel.WORKSPACE WORKSPACE
+          du -sh .; df -h / /mnt/build | tail -2
+
+      - name: Fase 2 — integrar KSU Next + SUSFS (revisões PINADAS)
+        run: |
+          cd "$WS"
+          # 🔒 PINADO (nunca branch movel):
+          SUSFS_SHA=0ff932799d898366d57b3b5984d85cdbcfcfad0a   # simonpunk/susfs4ksu @ gki-android14-6.1
+          KSUN_SHA=bfc9d1805b653b44151bebfea79592a8da4c3017    # pershoot/KernelSU-Next @ next-susfs
+          git clone -q https://gitlab.com/simonpunk/susfs4ksu
+          ( cd susfs4ksu && git checkout -q "$SUSFS_SHA" )
+          # (1) arquivos do SUSFS na arvore do kernel
+          cp -v susfs4ksu/kernel_patches/fs/susfs.c                kernel-6.1/fs/
+          cp -v susfs4ksu/kernel_patches/include/linux/susfs.h     kernel-6.1/include/linux/
+          cp -v susfs4ksu/kernel_patches/include/linux/susfs_def.h kernel-6.1/include/linux/
+          # (2) KernelSU-Next: o setup.sh integra o driver (Makefile/drivers/Kconfig). NAO faco git init
+          #     no kernel-6.1 (senao o Kbuild faria git-describe e sujaria o vermagic — a receita §9.7
+          #     depende de o setlocalversion NAO achar git).
+          ( cd kernel-6.1 && curl -LSs "https://raw.githubusercontent.com/pershoot/KernelSU-Next/${KSUN_SHA}/kernel/setup.sh" | bash -s next-susfs )
+          echo "--- KSU integrado?"; ls -d kernel-6.1/KernelSU-Next kernel-6.1/drivers/kernelsu 2>/dev/null || echo "(checar setup.sh)"
+          # (3) patch SUSFS no kernel — MEDIR o conflito (o kernel-mtk e fork; pode rejeitar). NAO mascarar.
+          if ( cd kernel-6.1 && patch -p1 --no-backup-if-mismatch --force < ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ); then
+            echo "✅ SUSFS patch aplicou limpo"
+          else
+            echo "🔴 SUSFS patch CONFLITOU — .rej abaixo (isto decide Path A vs Path B):"
+            find kernel-6.1 -name '*.rej' | sort | while read r; do echo "===== $r"; sed -n '1,25p' "$r"; done
+            echo "--- resumo: $(find kernel-6.1 -name '*.rej' | wc -l) arquivos com reject"
+            exit 1
+          fi
+
+      - name: Delta do vienna + config KSU/SUSFS + patch do vermagic
+        run: |
+          cd "$WS/kernel_device_modules-6.1"
+          mkdir -p kernel/configs
+          for c in moto-mgk_64_k61 moto-mgk_64_k61-vienna moto-mgk_64_k61-df; do
+            cp -v "arch/arm64/configs/ext_config/$c.config" kernel/configs/
+          done
+          # KSU + SUSFS ligados direto no gki_defconfig (o `make gki_defconfig` le primeiro; sao =y
+          # nao-default, entao o olddefconfig os mantem, e no alvo _dist nao ha check de savedefconfig).
+          GKI="$WS/kernel-6.1/arch/arm64/configs/gki_defconfig"
+          for c in CONFIG_KSU=y CONFIG_KSU_SUSFS=y CONFIG_KSU_SUSFS_SUS_PATH=y \
+                   CONFIG_KSU_SUSFS_SUS_MOUNT=y CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y \
+                   CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y CONFIG_KSU_SUSFS_SUS_KSTAT=y \
+                   CONFIG_KSU_SUSFS_TRY_UMOUNT=y CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y \
+                   CONFIG_KSU_SUSFS_SPOOF_UNAME=y CONFIG_KSU_SUSFS_ENABLE_LOG=y \
+                   CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y \
+                   CONFIG_KSU_SUSFS_OPEN_REDIRECT=y; do echo "$c"; done >> "$GKI"
+          echo "--- ultimas linhas do gki_defconfig:"; tail -16 "$GKI"
+          # patch do vermagic (§9.7): .scmversion lido so no env do cliente (workspace_status), nao no Kbuild
+          sed -i 's/if test -e .scmversion; then/if test -n "$VD_WS_SCM" \&\& test -e .scmversion; then/' \
+            "$WS/kernel-6.1/scripts/setlocalversion"
+          grep -q 'VD_WS_SCM' "$WS/kernel-6.1/scripts/setlocalversion" || { echo "PATCH vermagic FALHOU"; exit 1; }
+
+      - name: Compilar (KSU+SUSFS, Linux version clonada)
+        id: build
+        env:
+          BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN: 1
+          KERNEL_VERSION: kernel-6.1
+          DEFCONFIG_OVERLAYS: "moto-mgk_64_k61.config moto-mgk_64_k61-vienna.config moto-mgk_64_k61-df.config"
+          BUILD_NUMBER: "14680598"
+          SOURCE_DATE_EPOCH: "1767798273"
+          VD_WS_SCM: "1"
+        run: |
+          set -o pipefail
+          cd "$WS"
+          mkdir -p ../vendor/mediatek/kernel_modules
+          echo "-gd77c4cd65aed" > kernel-6.1/.scmversion
+          ln -sfn kernel-6.1 .source_date_epoch_dir
+          BZ=/mnt/build/bazel-root; mkdir -p "$BZ"
+          tools/bazel --output_user_root="$BZ" run --config=stamp --nokleaf_localversion "${{ inputs.target }}" -- --dist_dir="$PWD/dist" 2>&1 | tail -120
+          rc=${PIPESTATUS[0]}
+          echo "===== Linux version + KSU/SUSFS no .config (medir) ====="
+          cat bazel-out/stable-status.txt 2>/dev/null | grep -E 'SCMVERSION|SOURCE_DATE' || true
+          find /mnt/build -name '.config' 2>/dev/null | xargs -r grep -l 'CONFIG_KSU=' 2>/dev/null | head -1 \
+            | xargs -r grep -E 'CONFIG_KSU=|CONFIG_KSU_SUSFS=|CONFIG_KSU_SUSFS_SUS_PATH=' 2>/dev/null || echo "(KSU nao no .config!)"
+          echo "--- disco:"; df -h / /mnt/build | tail -2
+          exit $rc
+
+      - name: O que saiu + KSU/SUSFS no Image
+        if: always()
+        run: |
+          ls -lh "$WS/dist" 2>/dev/null || echo "sem dist/"
+          IMG=$(find "$WS/dist" -maxdepth 1 -name 'Image' | head -1)
+          if [ -n "$IMG" ]; then
+            echo "=== Linux version (deve clonar o stock byte a byte) ==="
+            strings "$IMG" | grep -m1 'Linux version'
+            echo "=== marcadores KSU/SUSFS no Image ==="
+            strings "$IMG" | grep -iE 'kernelsu|susfs' | sort -u | head -20 || echo "(nenhum — KSU/SUSFS nao entraram)"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vienna-phase2-${{ inputs.mmi_tag }}
+          path: |
+            /mnt/build/ws/dist/Image*
+            /mnt/build/ws/dist/*.gz
+          if-no-files-found: warn
+          retention-days: 14
