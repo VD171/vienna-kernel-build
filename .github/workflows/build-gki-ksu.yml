@@ -82,6 +82,17 @@ jobs:
           # o setup cria drivers/kernelsu (symlink) + KernelSU-Next/ e edita Kconfig/Makefile de drivers/
           ls -d common/KernelSU-Next 2>/dev/null || ls -l common/drivers/kernelsu 2>/dev/null || { echo "🔴 setup.sh falhou"; exit 1; }
           echo "--- versao KSU-Next integrada:"; ( cd common/KernelSU-Next 2>/dev/null && git describe --tags 2>/dev/null || cat kernel/Makefile 2>/dev/null | grep -m1 -i version || true )
+          # === BAKER DA VERSAO (fix v0.0.1): o Kbuild calcula KSU_VERSION=30000+git-rev-count do
+          #     proprio git, mas o sandbox do Bazel NAO tem .git -> fallback (1 / v0.0.1) -> su quebra
+          #     e o manager fica "legacy". Computamos aqui (o clone TEM git) e injetamos como literal. ===
+          ( cd common/KernelSU-Next && ( [ -f .git/shallow ] && git fetch --unshallow -q 2>/dev/null || git fetch -q --tags 2>/dev/null || true ) )
+          KV=$(cd common/KernelSU-Next && git rev-list --count HEAD 2>/dev/null)
+          KT=$(cd common/KernelSU-Next && git describe --tags --abbrev=0 2>/dev/null || echo "$KSUN_REF")
+          [ -n "$KV" ] && [ "$KV" -gt 1 ] || { echo "🔴 KSU_GIT_VERSION invalido ($KV)"; exit 1; }
+          KB=common/KernelSU-Next/kernel/Kbuild
+          sed -i "s|^# Check if this is a git repository|KSU_GIT_VERSION := ${KV}\nKSU_GIT_TAG := ${KT}\nKSU_GIT_VERSION_VALID := 1\n# Check if this is a git repository|" "$KB"
+          echo "--- BAKED KSU: KSU_GIT_VERSION=${KV}  KSU_VERSION=$((30000+KV))  tag=${KT}"
+          grep -nE "KSU_GIT_VERSION :=|KSU_GIT_TAG :=|KSU_GIT_VERSION_VALID :=" "$KB" | head
           # manter o git-describe LIMPO (senao o KSU deixa a arvore -dirty e o vermagic viraria ...-dirty).
           ( cd common && git update-index --assume-unchanged $(git ls-files -m) 2>/dev/null || true )
           echo "--- scmversion (deve ser -gd77c4cd65aed, SEM -dirty):"; ( cd common && ./scripts/setlocalversion 2>/dev/null || true )
