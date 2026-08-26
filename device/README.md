@@ -10,6 +10,7 @@ redacted, because those identify one phone and nothing here needs them.
 | [`kernel-config-stock--W1UIS36H.39-17-8.txt`](kernel-config-stock--W1UIS36H.39-17-8.txt) | the **running** kernel config, from `/proc/config.gz` on the stock kernel (7550 lines) | this is the config that is known to boot on this hardware. It is also the reference input for [`../tools/check-gate.py`](../tools/check-gate.py), so you can check a kernel you built **without** already having root on the device |
 | [`fastboot-getvar--vienna.txt`](fastboot-getvar--vienna.txt) | full `fastboot getvar all`, redacted | UFS and RAM parts, `MT6878`, panel and slot layout, baseband, bootloader version, `securestate` semantics |
 | [`logo-format.md`](logo-format.md) | the `logo.img` container, reverse engineered | if you want to change the boot logo without touching `lk` |
+| [`props/`](props/) | the `build.prop` / `prop.default` from init_boot and vendor_boot, as plain text | build fingerprints, ids, vendor and RIL config; good for searching, no device identity |
 
 ## The one that matters most
 
