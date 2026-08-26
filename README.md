@@ -173,6 +173,8 @@ This list is kept updated as new tags appear.
 | 🧵 [XDA thread](https://xdaforums.com/t/guide-rooting-how-to-root-motorola-60-edge-neo-5g-xt2509-1-vienna.4798267/) | `[GUIDE][ROOTING]` XT2509-1 (vienna) |
 | 🛠 [VD171/vienna-kernel-build](https://github.com/VD171/vienna-kernel-build) | this repo |
 | 📦 [VD171/vienna-kernel-source](https://github.com/VD171/vienna-kernel-source) | the kernel sources, extracted, one branch per tag |
+| 🐧 [MotorolaMobilityLLC, `MMI-W1UIS36H.39-17-8`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-W1UIS36H.39-17-8) | Motorola's own GPL source release for this build |
+| 💾 [stockrom.net, Edge 60 Neo 5G](https://www.stockrom.net/category/motorola/edge-60-neo-5g) | stock firmware packages, useful if you need a full ROM rather than single partitions |
 
 ## License
 

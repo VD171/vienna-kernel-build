@@ -124,6 +124,22 @@ jobs:
             echo "=== marcadores KSU ==="; strings "$IMG" | grep -iE 'kernelsu|susfs' | sort -u | head -12
           fi
 
+      - name: Empacotar a SOURCE correspondente (GPL) - a arvore exata que compilou
+        if: success()
+        run: |
+          # GPL-2.0: quem distribui o binario tem de oferecer a fonte correspondente.
+          # Aqui sai a arvore `common/` EXATA que produziu este Image (GKI common na tag do
+          # stock + KernelSU-Next integrado + o baker da versao), sem .git e sem saida do bazel.
+          # Vira asset da release junto do kernel. Nao e um espelho do AOSP: e o que compilou.
+          cd "$WS"
+          tar --exclude='.git' --exclude='bazel-*' --exclude='out' \
+              -I 'zstd -T0 -12' -cf "$WS/dist/vienna-kernel-source-corresponding.tar.zst" common
+          ls -lh "$WS/dist/vienna-kernel-source-corresponding.tar.zst"
+          sha256sum "$WS/dist/vienna-kernel-source-corresponding.tar.zst"
+          echo "--- revisoes que compoem esta arvore (a receita, para reproduzir):"
+          echo "  GKI common : ${{ inputs.gki_tag }} (android.googlesource.com/kernel/common)"
+          echo "  KernelSU-Next: ${{ inputs.ksun_ref }} (github.com/KernelSU-Next/KernelSU-Next)"
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -132,5 +148,6 @@ jobs:
             /mnt/build/ws/dist/Image*
             /mnt/build/ws/dist/*.gz
             /mnt/build/ws/dist/*symvers*
+            /mnt/build/ws/dist/vienna-kernel-source-corresponding.tar.zst
           if-no-files-found: warn
           retention-days: 14
