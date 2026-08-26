@@ -106,7 +106,7 @@ jobs:
           set -o pipefail
           cd "$WS"
           BZ=/mnt/build/bazel-root; mkdir -p "$BZ"
-          tools/bazel --output_user_root="$BZ" run --config=stamp "${{ inputs.target }}" -- --dist_dir="$PWD/dist" 2>&1 | tail -100
+          tools/bazel --output_user_root="$BZ" run --config=stamp --notrim "${{ inputs.target }}" -- --dist_dir="$PWD/dist" 2>&1 | tail -100
           rc=${PIPESTATUS[0]}
           echo "===== CONFIG_KSU no .config ====="
           find /mnt/build -name '.config' 2>/dev/null | xargs -r grep -l 'CONFIG_KSU=' 2>/dev/null | head -1 \
