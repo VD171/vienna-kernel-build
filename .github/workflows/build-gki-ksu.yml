@@ -73,6 +73,22 @@ jobs:
           [ "$H" = "d77c4cd65aedc9148e9db607aef6901cabfb62e5" ] || { echo "🔴 SHA nao bate"; exit 1; }
           echo "HEAD=$H  SUBLEVEL=$(grep -E '^SUBLEVEL' Makefile)"
 
+      - name: Remover GKI protected exports (fix wifi/bt em kernel custom)
+        run: |
+          # CAUSA RAIZ (26/08) da fase 2 sem wifi: no kernel custom a chave de assinatura e NOSSA,
+          # entao os modulos GKI stock (rfkill/cfg80211/mac80211, assinados pelo Google) sao "unsigned"
+          # p/ nos e NAO podem resolver os SIMBOLOS PROTEGIDOS -> a cadeia rfkill->cfg80211->mac80211->
+          # wlan_drv nao sobe -> sem wifi. Fix padrao da comunidade GKI: remover a lista de protected
+          # exports do common. E invisivel a um diff de defconfig: e alvo do BUILD.bazel, nao do Kconfig.
+          cd "$WS/common"
+          FILES=$(ls android/abi_gki_protected_exports_* 2>/dev/null || true)
+          sed -i '/protected_exports_list/d' BUILD.bazel
+          rm -f android/abi_gki_protected_exports_*
+          git update-index --assume-unchanged BUILD.bazel $FILES 2>/dev/null || true
+          echo "--- protected_exports_list no BUILD.bazel (deve sumir):"
+          grep -n protected_exports_list BUILD.bazel && { echo "ainda tem"; exit 1; } || echo "  (removido OK)"
+          ls android/abi_gki_protected_exports_* 2>/dev/null && { echo "abi ainda existe"; exit 1; } || echo "--- abi_gki_protected_exports_* removidos OK"
+
       - name: Integrar KSU-Next OFICIAL (built-in, sem susfs)
         run: |
           cd "$WS"
