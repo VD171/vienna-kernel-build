@@ -96,8 +96,11 @@ jobs:
           dlc vendor-mediatek-kernel_modules-connectivity-common         common
           dlc vendor-mediatek-kernel_modules-connectivity-wlan-adaptor   wlan/adaptor
           dlc vendor-mediatek-kernel_modules-connectivity-wlan-core-gen4m wlan/core/gen4m
-          cd "$WS"; echo "--- layout $WS ---"; ls; echo "--- /mnt/build/vendor ---"; ls -R /mnt/build/vendor/mediatek/kernel_modules/connectivity | head -20
-          du -sh . /mnt/build/vendor; df -h / /mnt/build | tail -2
+          # o vendor REAL fica em /mnt/build/vendor (irmao do ws -> satisfaz @mgk_ko `../vendor`);
+          # symlink $WS/vendor -> ele p/ os labels do repo PRINCIPAL (//vendor/...) tambem resolverem.
+          ln -sfn /mnt/build/vendor "$WS/vendor"
+          cd "$WS"; echo "--- $WS/vendor (symlink) ---"; ls -l vendor; echo "--- alvos //vendor ---"; ls vendor/mediatek/kernel_modules/connectivity
+          du -sh /mnt/build/vendor; df -h / /mnt/build | tail -2
 
       - name: Build MODULOS .ack (connac2 contra o common)
         id: build
