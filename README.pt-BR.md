@@ -8,9 +8,11 @@ Build do kernel do **Motorola Edge 60 Neo** (`vienna`, MT6878 / Dimensity 7400) 
 > **KernelSU LKM patchado no `init_boot`**, que não precisa de build nenhum. O workflow padrão aqui
 > compila o **kernel GKI stock** (sem KernelSU) e existe para provar que a receita é byte a byte.
 >
-> 🆕 **Fase 2 (root built-in) agora também funciona.** Um segundo workflow compila o **KernelSU-Next
-> OFICIAL dentro do kernel** (não LKM), mantendo a `Linux version` do stock byte a byte. Ele **boota e
-> foi validado num aparelho real**. Ver [Fase 2](#fase-2-ksu-next-built-in-a-parte-que-deu-mais-trabalho) abaixo.
+> 🆕 **Fase 2 (root built-in) funciona.** Um segundo workflow compila o **KernelSU-Next dentro do
+> kernel** (não LKM), mantendo a `Linux version` do stock byte a byte. Um kernel com KSU built-in feito
+> por esta receita **bootou num aparelho real** e carregou todos os device modules stock. A variante
+> atual (KernelSU-Next OFICIAL, sem SUSFS) compila e passa o gate pré-flash; a validação no aparelho
+> dessa build específica está pendente. Ver [Fase 2](#fase-2-ksu-next-built-in-a-parte-que-deu-mais-trabalho) abaixo.
 
 ## Status
 
@@ -19,7 +21,8 @@ Build do kernel do **Motorola Edge 60 Neo** (`vienna`, MT6878 / Dimensity 7400) 
 | O `Image` stock compila | ✅ 34 MB, em **36 min** num runner comum (2 cores, 7,8 GB) |
 | `Linux version` do stock | ✅ reproduzida **byte a byte** vs a build de fábrica |
 | Device modules | ✅ **reusa o `vendor_dlkm` stock** (GKI/KMI, mesmo vermagic); compilá-los da fonte é barrado pelo `vendor/mediatek` proprietário, e não é preciso |
-| Fase 2: KSU-Next OFICIAL built-in | ✅ compila e **boota no aparelho**; 424 device modules carregam com **0 erro de vermagic** |
+| Fase 2: um kernel com **KSU built-in** boota | ✅ medido no aparelho: subiu o Android, **424 device modules carregados, 0 erro de vermagic**, `lsmod` sem kernelsu (é built-in, não LKM) |
+| Fase 2: **KSU-Next OFICIAL, sem SUSFS** | 🟡 compila e passa o gate pré-flash (versão byte a byte, config bate com o aparelho). **Ainda não validado no aparelho** |
 | Boota no aparelho | ✅ validado no aparelho do mantenedor (stock e Fase 2) |
 
 ## O que este repo responde

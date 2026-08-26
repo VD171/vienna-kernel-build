@@ -9,9 +9,11 @@ on GitHub Actions, straight from Motorola's GPL release.
 > **KernelSU LKM patched into `init_boot`**, which needs no kernel build at all. The default workflow
 > here builds the **stock GKI kernel** (no KernelSU) and exists to prove the recipe is byte exact.
 >
-> 🆕 **Phase 2 (built-in root) now works too.** A second workflow builds **KernelSU-Next OFFICIAL,
-> compiled into the kernel** (not an LKM), keeping the stock `Linux version` byte for byte. It **boots
-> and was validated on a real device**. See [Phase 2](#phase-2-built-in-ksu-next-the-part-that-took-the-most-work) below.
+> 🆕 **Phase 2 (built-in root) works.** A second workflow builds **KernelSU-Next compiled into the
+> kernel** (not an LKM), keeping the stock `Linux version` byte for byte. A built-in KSU kernel from
+> this recipe **booted on a real device** and loaded every stock vendor module. The current variant
+> (KernelSU-Next OFFICIAL, no SUSFS) builds and passes the pre-flash gate; device validation of that
+> exact build is pending. See [Phase 2](#phase-2-built-in-ksu-next-the-part-that-took-the-most-work) below.
 
 ## Status
 
@@ -20,7 +22,8 @@ on GitHub Actions, straight from Motorola's GPL release.
 | Stock `Image` builds | ✅ 34 MB, in **36 min** on a stock runner (2 cores, 7.8 GB RAM) |
 | Stock `Linux version` | ✅ reproduced **byte for byte** vs the factory build |
 | Device modules | ✅ **stock `vendor_dlkm` reused** (GKI/KMI, same vermagic); building them from source is blocked by the proprietary `vendor/mediatek`, and is not needed |
-| Phase 2: KSU-Next OFFICIAL built-in | ✅ builds and **boots on device**; 424 vendor modules load with **0 vermagic error** |
+| Phase 2: a **built-in KSU** kernel boots | ✅ measured on device: booted to Android, **424 vendor modules loaded, 0 vermagic errors**, `lsmod` shows no kernelsu (it is built in, not an LKM) |
+| Phase 2: **KSU-Next OFFICIAL, no SUSFS** | 🟡 builds, and passes the pre-flash gate (byte exact version, config matches the device). **Not yet validated on device** |
 | Boots on device | ✅ validated on the maintainer's device (stock and Phase 2) |
 
 ## The one thing this repo is worth reading for
