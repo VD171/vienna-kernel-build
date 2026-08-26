@@ -85,17 +85,19 @@ jobs:
           git clone -q --depth 1 -b "$T" \
             https://github.com/MotorolaMobilityLLC/kernel-build-bazel_mgk_rules build/bazel_mgk_rules
           cp -f build/bazel_mgk_rules/kleaf/bazel.WORKSPACE WORKSPACE
-          # repos de connectividade (connac2) nos paths que os alvos bazel esperam
-          mkdir -p vendor/mediatek/kernel_modules/connectivity/wlan/core vendor/mediatek/kernel_modules/connectivity/wlan
-          cd vendor/mediatek/kernel_modules/connectivity
+          # repos de connectividade (connac2). 🔑 o WORKSPACE usa `new_local_repository path=
+          # "../vendor/mediatek/..."` => vendor tem de ser IRMAO do $WS (em /mnt/build/vendor), NAO dentro.
+          VEND=/mnt/build/vendor/mediatek/kernel_modules/connectivity
+          mkdir -p "$VEND/wlan/core"
+          cd "$VEND"
           dlc(){ curl -fsSL "https://codeload.github.com/MotorolaMobilityLLC/$1/tar.gz/refs/tags/$T" | tar -xz && mv "$1-$T" "$2"; }
           dlc vendor-mediatek-kernel_modules-connectivity-conninfra      conninfra
           dlc vendor-mediatek-kernel_modules-connectivity-connfem        connfem
           dlc vendor-mediatek-kernel_modules-connectivity-common         common
           dlc vendor-mediatek-kernel_modules-connectivity-wlan-adaptor   wlan/adaptor
           dlc vendor-mediatek-kernel_modules-connectivity-wlan-core-gen4m wlan/core/gen4m
-          cd "$WS"; echo "--- layout ---"; ls; echo "--- connectivity ---"; ls vendor/mediatek/kernel_modules/connectivity vendor/mediatek/kernel_modules/connectivity/wlan
-          du -sh .; df -h / /mnt/build | tail -2
+          cd "$WS"; echo "--- layout $WS ---"; ls; echo "--- /mnt/build/vendor ---"; ls -R /mnt/build/vendor/mediatek/kernel_modules/connectivity | head -20
+          du -sh . /mnt/build/vendor; df -h / /mnt/build | tail -2
 
       - name: Build MODULOS .ack (connac2 contra o common)
         id: build
@@ -115,22 +117,20 @@ jobs:
           # o alvo .ack faz a regra usar //common-6.1 como base.
           export KERNEL_VERSION=kernel-6.1 DEFCONFIG_OVERLAYS="" \
                  SOURCE_DATE_EPOCH="1767798273" BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
-          echo "===== QUERY: alvos do device_modules (procurando .ack/dist) ====="
-          tools/bazel --output_user_root="$BZ" query '//kernel_device_modules-6.1:*' 2>/dev/null \
-            | grep -iE "ack|dist" | sort -u | head -80 || true
-          echo "===== QUERY: alvo do wlan gen4m 6878 ====="
-          tools/bazel --output_user_root="$BZ" query \
-            '//vendor/mediatek/kernel_modules/connectivity/wlan/core/gen4m/build/connac2x/6878:*' 2>/dev/null \
-            | grep -iE "ack|wlan" | sort -u | head -30 || true
-          echo "===== BUILD dist .ack ====="
+          echo "===== BUILD do wlan_drv_gen4m_6878 .ack (puxa conninfra/connfem/wmt/page_pool + device symvers) ====="
+          WLAN='//vendor/mediatek/kernel_modules/connectivity/wlan/core/gen4m/build/connac2x/6878:wlan_drv_gen4m_6878.mgk_64_k61.6.1.ack'
           set -x
-          tools/bazel --output_user_root="$BZ" run \
+          tools/bazel --output_user_root="$BZ" build \
             --//build/bazel_mgk_rules:kernel_version=6.1 \
             --config=stamp --nokmi_symbol_list_violations_check \
-            //kernel_device_modules-6.1:mgk_64_k61_customer_dist.ack \
-            -- --dist_dir="$OUT_DIR/dist" 2>&1 | tail -160
+            "$WLAN" 2>&1 | tail -170
           rc=${PIPESTATUS[0]}
           set +x
+          echo "===== .ko produzidos ====="
+          find "$BZ" bazel-bin /mnt/build -name '*.ko' 2>/dev/null | grep -iE "wlan|conninfra|connfem|connadp|connscp|wmt|mddp|page_pool|fmradio" | sort -u | head -40
+          # copia p/ o dist
+          mkdir -p "$OUT_DIR/dist"
+          find "$BZ" bazel-bin /mnt/build -name '*.ko' 2>/dev/null -exec cp -n {} "$OUT_DIR/dist/" \; 2>/dev/null || true
           echo "--- disco:"; df -h / /mnt/build | tail -2
           exit $rc
 
