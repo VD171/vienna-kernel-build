@@ -109,6 +109,12 @@ jobs:
           set -o pipefail
           cd "$WS"
           mkdir -p "$OUT_DIR"
+          # _setup_env.sh sourcia $WS/build.config (a MTK provê; nós montamos manual). Recria a
+          # semântica: KERNEL_DIR=device_modules; o mtk_kernel_device_modules troca p/ kernel-6.1
+          # como GKI-alvo e lista os EXT_MODULES (connac2). PROJECT/MODE vêm do env (survivem set -a).
+          echo 'KERNEL_DIR=kernel_device_modules-6.1' > build.config
+          echo '. ${ROOT_DIR}/kernel_device_modules-6.1/build.config.mtk_kernel_device_modules' >> build.config
+          echo "--- build.config:"; cat build.config
           echo "== invocando build.sh do device_modules (MODE=$MODE PROJECT=$PROJECT) =="
           bash kernel_device_modules-6.1/build.sh 2>&1 | tail -150
           rc=${PIPESTATUS[0]}
