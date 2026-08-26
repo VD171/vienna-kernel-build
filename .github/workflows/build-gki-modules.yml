@@ -112,10 +112,19 @@ jobs:
           # moto_chg_tcmd (device_module in-tree, path drivers/power/supply) à lista BASE + ligo o config
           # — resolve o modpost sem puxar a árvore motorola.
           echo 'CONFIG_MOTO_CHG_TCMD_SUPPORT=m' >> kernel_device_modules-6.1/arch/arm64/configs/mgk_64_k61_defconfig
-          sed -i '/^mgk_64_k61_device_modules = \[/a\    "drivers/power/supply/moto_chg_tcmd.ko",' \
-            kernel_device_modules-6.1/kernel/kleaf/mgk_64_k61.bzl
-          echo "--- confer:"; grep -n "moto_chg_tcmd" kernel_device_modules-6.1/kernel/kleaf/mgk_64_k61.bzl | head; \
-            tail -2 kernel_device_modules-6.1/arch/arm64/configs/mgk_64_k61_defconfig
+          # moto_chg_tcmd (precisa do config acima) + módulos que o config BASE compila mas só constam
+          # no `outs` das listas de overlay (câmera OIS mot_dw9784/mot_tele_dw9784, áudio tfa9865) — o
+          # kleaf recusa "built but not copied". Adiciono todos à lista BASE (= outs), sem overlay.
+          BZL=kernel_device_modules-6.1/kernel/kleaf/mgk_64_k61.bzl
+          for ko in \
+            "drivers/power/supply/moto_chg_tcmd.ko" \
+            "drivers/misc/mediatek/lens/ois/mot_tele_dw9784/mot_tele_dw9784.ko" \
+            "drivers/misc/mediatek/lens/ois/mot_dw9784/mot_dw9784.ko" \
+            "sound/soc/codecs/tfa9865/snd-soc-tfa9865.ko"; do
+            sed -i "/^mgk_64_k61_device_modules = \[/a\\    \"$ko\"," "$BZL"
+          done
+          echo "--- confer:"; grep -nE "moto_chg_tcmd|mot_dw9784|tfa9865" "$BZL" | head; \
+            tail -1 kernel_device_modules-6.1/arch/arm64/configs/mgk_64_k61_defconfig
 
       - name: Build MODULOS .ack (connac2 contra o common)
         id: build
