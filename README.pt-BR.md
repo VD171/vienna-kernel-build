@@ -22,7 +22,7 @@ Build do kernel do **Motorola Edge 60 Neo** (`vienna`, MT6878 / Dimensity 7400) 
 | `Linux version` do stock | ✅ reproduzida **byte a byte** vs a build de fábrica |
 | Device modules | ✅ **reusa o `vendor_dlkm` stock** (GKI/KMI, mesmo vermagic); compilá-los da fonte é barrado pelo `vendor/mediatek` proprietário, e não é preciso |
 | Fase 2: um kernel com **KSU built-in** boota | ✅ medido no aparelho: subiu o Android, **424 device modules carregados, 0 erro de vermagic**, `lsmod` sem kernelsu (é built-in, não LKM) |
-| Fase 2: **KSU-Next OFICIAL, sem SUSFS** | 🟡 compila e passa o gate pré-flash (versão byte a byte, config bate com o aparelho). **Ainda não validado no aparelho** |
+| Fase 2: **KSU-Next OFICIAL, sem SUSFS** | 🟡 compila, boota e o driver do KSU roda. **Mas o Wi-Fi não sobe**, então não serve de daily e não tem release. Ver [a pegadinha](#-a-pegadinha-o-common-puro-custa-o-wi-fi) |
 | Boota no aparelho | ✅ validado no aparelho do mantenedor (stock e Fase 2) |
 
 ## O que este repo responde
@@ -90,6 +90,34 @@ O `common` puro **bootou**. Depois `common` + KSU-Next built-in **bootou**, cheg
 **424 device modules carregaram com 0 erro de vermagic**, que é o de-risk real do KMI: o
 `vendor_dlkm` stock aceita o nosso kernel. Bônus: nesse caminho o vermagic sai natural do
 `git describe`, então o hack do `.scmversion` que a receita do stock exige fica desnecessário.
+
+### 🪤 A pegadinha: o `common` puro custa o Wi-Fi
+
+O Path B resolve o panic, e tem um preço que você precisa saber antes de flashar qualquer coisa.
+
+Um kernel feito assim **boota, chega ao Android, carrega os 424 device modules stock e roda o driver
+do KernelSU** (medido: o driver lê a `packages.list`, ou seja está vivo e não é o fallback `v0.0.1`).
+**O Wi-Fi não sobe.** O log do kernel repete:
+
+```
+[MTK-WIFI] WIFI_write[E]: Wi-Fi driver is not ready for 2s
+```
+
+O motivo é estrutural, não é configuração errada: a integração de Wi-Fi da MediaTek (connac2) mora na
+**árvore de kernel da MediaTek**, e o Path B deliberadamente não usa aquela árvore, porque é ela que
+miscompila e gera o panic no init. Então as duas opções se contrapõem:
+
+| | boota | Wi-Fi | por quê |
+|---|---|---|---|
+| árvore da MediaTek | **não**, panica no init | funcionaria | tem a integração de Wi-Fi do vendor, e miscompila |
+| `common` puro do AOSP (Path B) | **sim** | **não** | build correto, sem a integração de Wi-Fi do vendor |
+
+É por isso que **não existe release deste kernel aqui**, e por isso o aparelho em que isto foi
+desenvolvido roda o root por LKM da [release de root](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-MMI-W1UIS36H.39-17-8):
+em LKM o kernel continua stock, então o Wi-Fi continua funcionando.
+
+Fechar essa lacuna é ou consertar o build da árvore da MediaTek, ou portar a integração do connac2
+para o `common`. Nenhum dos dois está feito. Se você conseguir um deles, abra uma issue.
 
 ### Por que sem SUSFS
 
