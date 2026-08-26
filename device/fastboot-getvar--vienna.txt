@@ -1,0 +1,68 @@
+(bootloader) version: 0.5
+(bootloader) version-bootloader[0]: MBM-3.1-vienna-6d051b-V2UI35.43-12-6
+(bootloader) version-bootloader[1]: -be363
+(bootloader) product: vienna
+(bootloader) board: vienna
+(bootloader) secure: yes
+(bootloader) hwrev: PVT
+(bootloader) radio: 7
+(bootloader) storage-type: ufs
+(bootloader) ufs:  256GB SKHYNIX H9QT1GGCN6X147 FV=A003 WB=3840
+(bootloader) ram: 12GB SKHYNIX LP4x DIE=24Gb M5=06 M6=07 M7=00 M8=55
+(bootloader) cpu: MT6878
+(bootloader) serialno: [redacted, unit specific]
+(bootloader) cid: 0x0032
+(bootloader) channelid: 0x19
+(bootloader) uid: [redacted, unit specific]
+(bootloader) chipid[0]: [redacted, unit specific]
+(bootloader) chipid[1]: [redacted, unit specific]
+(bootloader) token: inactive
+(bootloader) securestate: oem_locked
+(bootloader) factory-modes: disabled
+(bootloader) iswarrantyvoid: no
+(bootloader) max-download-size: 268435456
+(bootloader) reason: Volume down key pressed
+(bootloader) imei: [redacted, unit specific]
+(bootloader) imei2: [redacted, unit specific]
+(bootloader) meid: [redacted, unit specific]
+(bootloader) esimid: [redacted, unit specific]
+(bootloader) date: [redacted, unit specific]
+(bootloader) sku: XT2509-1
+(bootloader) carrier_sku: XT2509-1
+(bootloader) battid: ATLSP50NVT
+(bootloader) max-sparse-size: 268435456
+(bootloader) current-time: [redacted, unit specific]
+(bootloader) ro.build.fingerprint[0]: motorola/vienna_g_syss25/vienna:15
+(bootloader) ro.build.fingerprint[1]: /V2UI35.43-12-6/be363-d2b6d2:user/
+(bootloader) ro.build.fingerprint[2]: release-keys
+(bootloader) poweroffalarm: 0
+(bootloader) ro.build.version.mtk: alps-mp-u0.mp1.tc2sp3-V2
+(bootloader) version-baseband: MT6878V_NR17.RC.MP.V40.2.P189.01.295R
+(bootloader) kernel.version[0]: Linux version 6.1.141-android14-11-gfa12
+(bootloader) kernel.version[1]: 5f0fd372-ab13944755 (build-user@build-ho
+(bootloader) kernel.version[2]: st) (Android (10087095, +pgo, +bolt, +lt
+(bootloader) kernel.version[3]: o, -mlgo, based on r487747c) clang versi
+(bootloader) kernel.version[4]: on 17.0.2 (https://android.googlesource.
+(bootloader) kernel.version[5]: com/toolchain/llvm-project d9f89f4d16663
+(bootloader) kernel.version[6]: d5012e5c09495f3b30ece3d2362), LLD 17.0.2
+(bootloader) kernel.version[7]: ) #1 SMP PREEMPT Sat Aug 16 00:22:19 UTC
+(bootloader) kernel.version[8]:  2025
+(bootloader) frp-state: no protection (0)
+(bootloader) ro.carrier: retbr
+(bootloader) current-slot: a
+(bootloader) running-boot-lun: 1
+(bootloader) running-slot: _a
+(bootloader) slot-successful:_a: yes
+(bootloader) slot-successful:_b: no
+(bootloader) slot-unbootable:_a: no
+(bootloader) slot-unbootable:_b: no
+(bootloader) slot-retry-count:_a: 1
+(bootloader) slot-retry-count:_b: 7
+(bootloader) slot-suffixes: _a,_b
+(bootloader) slot-count: 2
+(bootloader) pcb-part-no: [redacted, unit specific]
+(bootloader) is-userspace: no
+(bootloader) snapshot-update-status: none
+(bootloader) fdr-allowed: yes
+all: listed above
+Finished. Total time: 0.004s

@@ -125,6 +125,7 @@ and rebuilds the built-in kernel automatically (artifact only, it never flashes 
 | [`flash-recipe/`](flash-recipe/) | **how to actually flash a custom kernel on this device.** `fastboot boot` does not exist here and `flash boot` is preflash checked against the on-device vbmeta, so it takes a surgical vbmeta patch. Read its README before running it |
 | [`tools/check-gate.py`](tools/check-gate.py) | prove a built `Image` agrees with the device (version string, embedded config vs `/proc/config.gz`, KSU/SUSFS markers) **before** you flash it |
 | [`tools/mtk-logo.py`](tools/mtk-logo.py) | unpack/repack the MediaTek boot `logo.img`, leaving Motorola's signature blocks intact |
+| [`device/`](device/) | **measured facts about the device**: the stock kernel config from `/proc/config.gz` (the reference `check-gate.py` compares against), the redacted `fastboot getvar all`, and the `logo.img` format |
 
 The **kernel sources themselves** are mirrored, extracted and browsable, one branch per build tag, in
 **[VD171/vienna-kernel-source](https://github.com/VD171/vienna-kernel-source)**. Diffing two branches
