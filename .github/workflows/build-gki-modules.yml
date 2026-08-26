@@ -62,17 +62,18 @@ jobs:
           repo sync -c -j$(nproc) --no-tags --fail-fast
           du -sh .; df -h / /mnt/build | tail -2
 
-      - name: common-6.1 = AOSP common na TAG do stock (base do .ack)
+      - name: common na TAG do stock + alias common-6.1 (base do .ack)
         run: |
-          cd "$WS"
-          # o .ack referencia //common-6.1 ; o repo sync deu //common — renomeia e fixa a tag do KMI
-          mv common common-6.1
-          cd common-6.1
+          cd "$WS/common"
+          # 🔑 NAO renomear common: o workspace_status do kleaf (--config=stamp) valida o manifesto do
+          # `repo`, que tem o projeto em path `common`. Renomear => "Project common does not exist".
+          # Fixo a tag do KMI em common/ e crio common-6.1 como SYMLINK (o .ack referencia //common-6.1).
           git fetch --depth=1 https://android.googlesource.com/kernel/common "refs/tags/${{ inputs.gki_tag }}"
           git checkout -q FETCH_HEAD
           H=$(git rev-parse HEAD)
           [ "$H" = "d77c4cd65aedc9148e9db607aef6901cabfb62e5" ] || { echo "🔴 SHA common nao bate ($H)"; exit 1; }
-          echo "common-6.1 HEAD=$H  $(grep -E '^SUBLEVEL' Makefile)"
+          cd "$WS"; ln -sfn common common-6.1
+          echo "common HEAD=$H  common-6.1 -> $(readlink common-6.1)  $(grep -E '^SUBLEVEL' common/Makefile)"
 
       - name: Arvores da Motorola na tag ${{ inputs.mmi_tag }}
         run: |
