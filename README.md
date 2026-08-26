@@ -23,7 +23,7 @@ on GitHub Actions, straight from Motorola's GPL release.
 | Stock `Linux version` | ✅ reproduced **byte for byte** vs the factory build |
 | Device modules | ✅ **stock `vendor_dlkm` reused** (GKI/KMI, same vermagic); building them from source is blocked by the proprietary `vendor/mediatek`, and is not needed |
 | Phase 2: a **built-in KSU** kernel boots | ✅ measured on device: booted to Android, **424 vendor modules loaded, 0 vermagic errors**, `lsmod` shows no kernelsu (it is built in, not an LKM) |
-| Phase 2: **KSU-Next OFFICIAL, no SUSFS** | 🟡 builds, and passes the pre-flash gate (byte exact version, config matches the device). **Not yet validated on device** |
+| Phase 2: **KSU-Next OFFICIAL, no SUSFS** | 🟡 builds, boots, and the KSU driver runs. **But Wi-Fi does not come up**, so it is not a daily driver and there is no release for it. See [the catch](#the-catch-pure-common-costs-you-wi-fi) |
 | Boots on device | ✅ validated on the maintainer's device (stock and Phase 2) |
 
 ## The one thing this repo is worth reading for
@@ -103,6 +103,34 @@ The pure `common` **booted**. Then `common` + KSU-Next built-in **booted**, reac
 **424 vendor modules loaded with 0 vermagic error**, which is the real KMI de-risk: the stock
 `vendor_dlkm` accepts our kernel. Bonus: on this path the vermagic comes out naturally from
 `git describe`, so the `.scmversion` hack the stock recipe needs is unnecessary.
+
+### 🪤 The catch: pure `common` costs you Wi-Fi
+
+Path B fixes the panic, and it has a price that you need to know before flashing anything.
+
+A kernel built this way **boots, reaches Android, loads all 424 stock vendor modules, and runs the
+KernelSU driver** (measured: the driver reads `packages.list`, so it is alive and not the `v0.0.1`
+fallback). **Wi-Fi does not come up.** The kernel log repeats:
+
+```
+[MTK-WIFI] WIFI_write[E]: Wi-Fi driver is not ready for 2s
+```
+
+The reason is structural, not a misconfiguration: MediaTek's Wi-Fi (connac2) integration lives in
+**MediaTek's kernel tree**, and Path B deliberately does not use that tree, because that tree is
+what miscompiles into the init panic. So the two options trade against each other:
+
+| | boots | Wi-Fi | why |
+|---|---|---|---|
+| MediaTek tree | **no**, panics at init | would work | the tree has the vendor Wi-Fi integration, and miscompiles |
+| pure AOSP `common` (Path B) | **yes** | **no** | correct build, no vendor Wi-Fi integration |
+
+Which is why **there is no release of this kernel here**, and why the device this was developed on
+runs the LKM root from the [root release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-MMI-W1UIS36H.39-17-8)
+instead: LKM keeps the stock kernel, so Wi-Fi keeps working.
+
+Closing the gap means either fixing the MediaTek tree build, or porting the connac2 integration onto
+`common`. Neither is done. If you get one of them working, open an issue.
 
 ### Why no SUSFS
 
