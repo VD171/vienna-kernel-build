@@ -1,0 +1,22 @@
+####################################
+# from generate-common-build-props
+# These properties identify this partition image.
+####################################
+ro.product.bootimage.brand=motorola
+ro.product.bootimage.device=vienna
+ro.product.bootimage.manufacturer=motorola
+ro.product.bootimage.model=motorola edge 50 neo
+ro.product.bootimage.name=vienna_g_sys
+ro.bootimage.build.date=Wed Jun 24 19:21:01 CDT 2026
+ro.bootimage.build.date.utc=1782346861
+ro.bootimage.build.fingerprint=motorola/vienna_g_sys/vienna:16/W1UIS36M.39-17-8/78a3a:user/release-keys
+ro.bootimage.build.id=W1UIS36M.39-17-8
+ro.bootimage.build.tags=release-keys
+ro.bootimage.build.type=user
+ro.bootimage.build.version.incremental=78a3a
+ro.bootimage.build.version.release=16
+ro.bootimage.build.version.release_or_codename=16
+ro.bootimage.build.version.sdk=36
+ro.bootimage.build.version.sdk_full=36.0
+# end of file
+
