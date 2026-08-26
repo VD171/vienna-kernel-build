@@ -108,16 +108,29 @@ jobs:
         run: |
           set -o pipefail
           cd "$WS"
-          mkdir -p "$OUT_DIR"
-          # _setup_env.sh sourcia $WS/build.config (a MTK provê; nós montamos manual). Recria a
-          # semântica: KERNEL_DIR=device_modules; o mtk_kernel_device_modules troca p/ kernel-6.1
-          # como GKI-alvo e lista os EXT_MODULES (connac2). PROJECT/MODE vêm do env (survivem set -a).
-          echo 'KERNEL_DIR=kernel_device_modules-6.1' > build.config
-          echo '. ${ROOT_DIR}/kernel_device_modules-6.1/build.config.mtk_kernel_device_modules' >> build.config
-          echo "--- build.config:"; cat build.config
-          echo "== invocando build.sh do device_modules (MODE=$MODE PROJECT=$PROJECT) =="
-          bash kernel_device_modules-6.1/build.sh 2>&1 | tail -150
+          mkdir -p "$OUT_DIR/dist"
+          BZ=/mnt/build/bazel-root; mkdir -p "$BZ"
+          # invoco o BAZEL DIRETO (pula o _setup_env/build.config da MTK, frágil fora do manifesto
+          # deles). mgk_info lê KERNEL_VERSION do env (workspace common_kernel_package=//kernel-6.1);
+          # o alvo .ack faz a regra usar //common-6.1 como base.
+          export KERNEL_VERSION=kernel-6.1 DEFCONFIG_OVERLAYS="" \
+                 SOURCE_DATE_EPOCH="1767798273" BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+          echo "===== QUERY: alvos do device_modules (procurando .ack/dist) ====="
+          tools/bazel --output_user_root="$BZ" query '//kernel_device_modules-6.1:*' 2>/dev/null \
+            | grep -iE "ack|dist" | sort -u | head -80 || true
+          echo "===== QUERY: alvo do wlan gen4m 6878 ====="
+          tools/bazel --output_user_root="$BZ" query \
+            '//vendor/mediatek/kernel_modules/connectivity/wlan/core/gen4m/build/connac2x/6878:*' 2>/dev/null \
+            | grep -iE "ack|wlan" | sort -u | head -30 || true
+          echo "===== BUILD dist .ack ====="
+          set -x
+          tools/bazel --output_user_root="$BZ" run \
+            --//build/bazel_mgk_rules:kernel_version=6.1 \
+            --config=stamp --nokmi_symbol_list_violations_check \
+            //kernel_device_modules-6.1:mgk_64_k61_customer_dist.ack \
+            -- --dist_dir="$OUT_DIR/dist" 2>&1 | tail -160
           rc=${PIPESTATUS[0]}
+          set +x
           echo "--- disco:"; df -h / /mnt/build | tail -2
           exit $rc
 
