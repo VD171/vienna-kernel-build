@@ -101,6 +101,19 @@ app que ele agregaria é em boa parte inócua, porque o SELinux já nega ao `unt
 O `ksun-autobuild.yml` roda diariamente. Quando o KernelSU-Next publica um release novo ele bumpa o
 ref pinado e rebuilda o kernel built-in automaticamente (só o artefato, nunca flasha nada).
 
+## O que tem aqui
+
+| Caminho | O quê |
+|---|---|
+| `.github/workflows/` | os builds: stock e KernelSU-Next OFICIAL built-in (mais o autobuild) |
+| [`flash-recipe/`](flash-recipe/) | **como de fato flashar um kernel custom neste aparelho.** `fastboot boot` não existe aqui e o `flash boot` é preflash-checado contra o vbmeta on-device, então exige um patch cirúrgico do vbmeta. Leia o README de lá antes de rodar |
+| [`tools/check-gate.py`](tools/check-gate.py) | provar que o `Image` compilado combina com o aparelho (string de versão, config embutido × `/proc/config.gz`, marcadores KSU/SUSFS) **antes** de flashar |
+| [`tools/mtk-logo.py`](tools/mtk-logo.py) | desempacota/reempacota o `logo.img` da MediaTek, preservando os blocos de assinatura da Motorola |
+
+As **fontes do kernel** em si estão espelhadas, extraídas e navegáveis, uma branch por tag de build, em
+**[VD171/vienna-kernel-source](https://github.com/VD171/vienna-kernel-source)**. Diffar duas branches
+de lá mostra o que a Motorola mudou entre duas ROMs.
+
 ## Fontes de kernel publicadas (catálogo)
 
 Todas as tags do **vienna** que a Motorola já liberou, da mais nova para a mais antiga. Os repos
@@ -135,6 +148,7 @@ Esta lista é mantida conforme surgem tags novas.
 | 💬 [t.me/Motorola_Edge_60_Neo](https://t.me/Motorola_Edge_60_Neo) | Telegram, Motorola Edge 60 Neo |
 | 🧵 [Thread no XDA](https://xdaforums.com/t/guide-rooting-how-to-root-motorola-60-edge-neo-5g-xt2509-1-vienna.4798267/) | `[GUIDE][ROOTING]` XT2509-1 (vienna) |
 | 🛠 [VD171/vienna-kernel-build](https://github.com/VD171/vienna-kernel-build) | este repo |
+| 📦 [VD171/vienna-kernel-source](https://github.com/VD171/vienna-kernel-source) | as fontes do kernel, extraídas, uma branch por tag |
 
 ## Licença
 

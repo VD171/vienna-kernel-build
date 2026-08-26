@@ -114,6 +114,19 @@ access to `/proc/modules`. Runtime hiding is handled in userspace instead.
 `ksun-autobuild.yml` runs daily. When KernelSU-Next publishes a new release it bumps the pinned ref
 and rebuilds the built-in kernel automatically (artifact only, it never flashes anything).
 
+## What is in here
+
+| Path | What |
+|---|---|
+| `.github/workflows/` | the builds: stock, and KernelSU-Next OFFICIAL built in (plus the autobuild) |
+| [`flash-recipe/`](flash-recipe/) | **how to actually flash a custom kernel on this device.** `fastboot boot` does not exist here and `flash boot` is preflash checked against the on-device vbmeta, so it takes a surgical vbmeta patch. Read its README before running it |
+| [`tools/check-gate.py`](tools/check-gate.py) | prove a built `Image` agrees with the device (version string, embedded config vs `/proc/config.gz`, KSU/SUSFS markers) **before** you flash it |
+| [`tools/mtk-logo.py`](tools/mtk-logo.py) | unpack/repack the MediaTek boot `logo.img`, leaving Motorola's signature blocks intact |
+
+The **kernel sources themselves** are mirrored, extracted and browsable, one branch per build tag, in
+**[VD171/vienna-kernel-source](https://github.com/VD171/vienna-kernel-source)**. Diffing two branches
+there shows what Motorola changed between two ROM releases.
+
 ## Usage
 
 Actions → **build vienna kernel** → *Run workflow*. Inputs: MMI tag, manifest branch, Bazel target.
@@ -135,6 +148,10 @@ Every **vienna** tag Motorola has released so far, newest first. `kernel-mtk` an
 | [`MMI-U4UI34.8-28-1`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-U4UI34.8-28-1) | 14 |  |
 | [`MMI-U4UI34.8-22-7`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-U4UI34.8-22-7) | 14 |  |
 
+> 💡 Each of these is a tarball. The same sources **extracted into git**, one branch per tag, are at
+> [VD171/vienna-kernel-source](https://github.com/VD171/vienna-kernel-source), where you can grep them
+> and diff one release against another.
+
 Note the device token **`UI`** in every Build ID: that is what identifies the platform, and it is
 why searching for "XT2509" finds nothing.
 
@@ -152,6 +169,7 @@ This list is kept updated as new tags appear.
 | 💬 [t.me/Motorola_Edge_60_Neo](https://t.me/Motorola_Edge_60_Neo) | Telegram, Motorola Edge 60 Neo |
 | 🧵 [XDA thread](https://xdaforums.com/t/guide-rooting-how-to-root-motorola-60-edge-neo-5g-xt2509-1-vienna.4798267/) | `[GUIDE][ROOTING]` XT2509-1 (vienna) |
 | 🛠 [VD171/vienna-kernel-build](https://github.com/VD171/vienna-kernel-build) | this repo |
+| 📦 [VD171/vienna-kernel-source](https://github.com/VD171/vienna-kernel-source) | the kernel sources, extracted, one branch per tag |
 
 ## License
 
