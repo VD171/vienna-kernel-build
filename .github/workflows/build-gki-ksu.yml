@@ -12,13 +12,13 @@ on:
       gki_tag: { default: "android14-6.1-2025-07_r11" }
       manifest_branch: { default: "common-android14-6.1" }
       target: { default: "//common:kernel_aarch64_dist" }
-      ksun_ref: { default: "v3.3.0" }
+      ksun_ref: { default: "next" }
   workflow_call:
     inputs:
       gki_tag: { type: string, default: "android14-6.1-2025-07_r11" }
       manifest_branch: { type: string, default: "common-android14-6.1" }
       target: { type: string, default: "//common:kernel_aarch64_dist" }
-      ksun_ref: { type: string, default: "v3.3.0" }
+      ksun_ref: { type: string, default: "next" }
 
 jobs:
   build:
@@ -112,6 +112,21 @@ jobs:
           # manter o git-describe LIMPO (senao o KSU deixa a arvore -dirty e o vermagic viraria ...-dirty).
           ( cd common && git update-index --assume-unchanged $(git ls-files -m) 2>/dev/null || true )
           echo "--- scmversion (deve ser -gd77c4cd65aed, SEM -dirty):"; ( cd common && ./scripts/setlocalversion 2>/dev/null || true )
+
+      - name: Manual hooks (non-kprobe, esconde o sucompat SCA)
+        run: |
+          # Fase 2 stealth: o "sucompat SCA" detecta os hooks por KPROBE do KSU. O KSU-Next `next`
+          # tem CONFIG_KSU_MANUAL_HOOK (hooks inline no source, sem kprobe). O setup.sh NAO adiciona
+          # as chamadas ksu_handle_* nas syscalls -> este passo faz (patcher validado contra o common
+          # @d77c4cd65aed: fs/open.c faccessat, fs/exec.c execveat, fs/read_write.c read, fs/stat.c stat).
+          cd "$WS/common"
+          echo 'IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwojIE1hbnVhbCAobm9uLWtwcm9iZSkgc3lzY2FsbCBob29rcyBwLyBLZXJuZWxTVS1OZXh0IChicmFuY2ggbmV4dCwgQ09ORklHX0tTVV9NQU5VQUxfSE9PSykuCiMgSW5zZXJlIG9zIGtzdV9oYW5kbGVfKiBuYXMgc3lzY2FsbHMgZG8gY29tbW9uIChvIHNldHVwLnNoIE5BTyBmYXogaXNzbykuIEFuY2hvcnMgZG8KIyBjb21tb24gYW5kcm9pZDE0LTYuMSBAZDc3YzRjZDY1YWVkLiBGYWxoYSBhbHRvIHNlIHVtIGFuY2hvciBuYW8gYmF0ZXIgKG5hbyBwYXRjaGEgbWVpYS1ib2NhKS4KaW1wb3J0IHN5cwoKZGVmIHBhdGNoKHBhdGgsIGVkaXRzKToKICAgIHMgPSBvcGVuKHBhdGgsIGVuY29kaW5nPSJ1dGYtOCIpLnJlYWQoKQogICAgZm9yIG9sZCwgbmV3IGluIGVkaXRzOgogICAgICAgIG4gPSBzLmNvdW50KG9sZCkKICAgICAgICBpZiBuICE9IDE6CiAgICAgICAgICAgIHN5cy5leGl0KGYie3BhdGh9OiBhbmNob3IgeHtufSAoZXNwZXJhdmEgMSk6IHtvbGRbOjUwXSFyfSIpCiAgICAgICAgcyA9IHMucmVwbGFjZShvbGQsIG5ldywgMSkKICAgIG9wZW4ocGF0aCwgInciLCBlbmNvZGluZz0idXRmLTgiKS53cml0ZShzKQogICAgcHJpbnQoInBhdGNoZWQiLCBwYXRoKQoKcGF0Y2goImZzL29wZW4uYyIsIFsKICAgICgic3RhdGljIGxvbmcgZG9fZmFjY2Vzc2F0KGludCBkZmQsIGNvbnN0IGNoYXIgX191c2VyICpmaWxlbmFtZSwgaW50IG1vZGUsIGludCBmbGFncylcbnsiLAogICAgICIjaWZkZWYgQ09ORklHX0tTVVxuZXh0ZXJuIGludCBrc3VfaGFuZGxlX2ZhY2Nlc3NhdChpbnQgKmRmZCwgY29uc3QgY2hhciBfX3VzZXIgKipmaWxlbmFtZV91c2VyLCBpbnQgKm1vZGUsIGludCAqZmxhZ3MpO1xuI2VuZGlmXG5zdGF0aWMgbG9uZyBkb19mYWNjZXNzYXQoaW50IGRmZCwgY29uc3QgY2hhciBfX3VzZXIgKmZpbGVuYW1lLCBpbnQgbW9kZSwgaW50IGZsYWdzKVxueyIpLAogICAgKCJcdGNvbnN0IHN0cnVjdCBjcmVkICpvbGRfY3JlZCA9IE5VTEw7XG4iLAogICAgICJcdGNvbnN0IHN0cnVjdCBjcmVkICpvbGRfY3JlZCA9IE5VTEw7XG4jaWZkZWYgQ09ORklHX0tTVVxuXHRrc3VfaGFuZGxlX2ZhY2Nlc3NhdCgmZGZkLCAmZmlsZW5hbWUsICZtb2RlLCBOVUxMKTtcbiNlbmRpZlxuIiksCl0pCgpwYXRjaCgiZnMvZXhlYy5jIiwgWwogICAgKCJzdGF0aWMgaW50IGRvX2V4ZWN2ZWF0X2NvbW1vbihpbnQgZmQsIHN0cnVjdCBmaWxlbmFtZSAqZmlsZW5hbWUsIiwKICAgICAiI2lmZGVmIENPTkZJR19LU1VcbmV4dGVybiBpbnQga3N1X2hhbmRsZV9leGVjdmVhdChpbnQgKmZkLCBzdHJ1Y3QgZmlsZW5hbWUgKipmaWxlbmFtZV9wdHIsIHZvaWQgKmFyZ3YsIHZvaWQgKmVudnAsIGludCAqZmxhZ3MpO1xuI2VuZGlmXG5zdGF0aWMgaW50IGRvX2V4ZWN2ZWF0X2NvbW1vbihpbnQgZmQsIHN0cnVjdCBmaWxlbmFtZSAqZmlsZW5hbWUsIiksCiAgICAoIlx0aWYgKElTX0VSUihmaWxlbmFtZSkpXG5cdFx0cmV0dXJuIFBUUl9FUlIoZmlsZW5hbWUpO1xuXG5cdC8qXG5cdCAqIFdlIG1vdmUgdGhlIGFjdHVhbCBmYWlsdXJlIGluIGNhc2Ugb2YgUkxJTUlUX05QUk9DIGV4Y2VzcyBmcm9tIiwKICAgICAiXHRpZiAoSVNfRVJSKGZpbGVuYW1lKSlcblx0XHRyZXR1cm4gUFRSX0VSUihmaWxlbmFtZSk7XG4jaWZkZWYgQ09ORklHX0tTVVxuXHRrc3VfaGFuZGxlX2V4ZWN2ZWF0KCZmZCwgJmZpbGVuYW1lLCAmYXJndiwgJmVudnAsICZmbGFncyk7XG4jZW5kaWZcblxuXHQvKlxuXHQgKiBXZSBtb3ZlIHRoZSBhY3R1YWwgZmFpbHVyZSBpbiBjYXNlIG9mIFJMSU1JVF9OUFJPQyBleGNlc3MgZnJvbSIpLApdKQoKcGF0Y2goImZzL3JlYWRfd3JpdGUuYyIsIFsKICAgICgic3NpemVfdCBrc3lzX3JlYWQodW5zaWduZWQgaW50IGZkLCBjaGFyIF9fdXNlciAqYnVmLCBzaXplX3QgY291bnQpXG57XG5cdHN0cnVjdCBmZCBmID0gZmRnZXRfcG9zKGZkKTtcblx0c3NpemVfdCByZXQgPSAtRUJBREY7XG4iLAogICAgICIjaWZkZWYgQ09ORklHX0tTVVxuZXh0ZXJuIGJvb2wga3N1X3Zmc19yZWFkX2hvb2sgX19yZWFkX21vc3RseTtcbmV4dGVybiBpbnQga3N1X2hhbmRsZV9zeXNfcmVhZCh1bnNpZ25lZCBpbnQgZmQsIGNoYXIgX191c2VyICoqYnVmX3B0ciwgc2l6ZV90ICpjb3VudF9wdHIpO1xuI2VuZGlmXG5zc2l6ZV90IGtzeXNfcmVhZCh1bnNpZ25lZCBpbnQgZmQsIGNoYXIgX191c2VyICpidWYsIHNpemVfdCBjb3VudClcbntcblx0c3RydWN0IGZkIGYgPSBmZGdldF9wb3MoZmQpO1xuXHRzc2l6ZV90IHJldCA9IC1FQkFERjtcbiNpZmRlZiBDT05GSUdfS1NVXG5cdGlmICh1bmxpa2VseShrc3VfdmZzX3JlYWRfaG9vaykpXG5cdFx0a3N1X2hhbmRsZV9zeXNfcmVhZChmZCwgJmJ1ZiwgJmNvdW50KTtcbiNlbmRpZlxuIiksCl0pCgpwYXRjaCgiZnMvc3RhdC5jIiwgWwogICAgKCJpbnQgdmZzX2ZzdGF0YXQoaW50IGRmZCwgY29uc3QgY2hhciBfX3VzZXIgKmZpbGVuYW1lLFxuXHRcdFx0ICAgICAgc3RydWN0IGtzdGF0ICpzdGF0LCBpbnQgZmxhZ3MpXG57XG5cdGludCByZXQ7XG5cdGludCBzdGF0eF9mbGFncyA9IGZsYWdzIHwgQVRfTk9fQVVUT01PVU5UO1xuXHRzdHJ1Y3QgZmlsZW5hbWUgKm5hbWU7XG4iLAogICAgICIjaWZkZWYgQ09ORklHX0tTVVxuZXh0ZXJuIGludCBrc3VfaGFuZGxlX3N0YXQoaW50ICpkZmQsIGNvbnN0IGNoYXIgX191c2VyICoqZmlsZW5hbWVfdXNlciwgaW50ICpmbGFncyk7XG4jZW5kaWZcbmludCB2ZnNfZnN0YXRhdChpbnQgZGZkLCBjb25zdCBjaGFyIF9fdXNlciAqZmlsZW5hbWUsXG5cdFx0XHQgICAgICBzdHJ1Y3Qga3N0YXQgKnN0YXQsIGludCBmbGFncylcbntcblx0aW50IHJldDtcblx0aW50IHN0YXR4X2ZsYWdzID0gZmxhZ3MgfCBBVF9OT19BVVRPTU9VTlQ7XG5cdHN0cnVjdCBmaWxlbmFtZSAqbmFtZTtcbiNpZmRlZiBDT05GSUdfS1NVXG5cdGtzdV9oYW5kbGVfc3RhdCgmZGZkLCAmZmlsZW5hbWUsICZmbGFncyk7XG4jZW5kaWZcbiIpLApdKQoKcHJpbnQoIk9LOiBtYW51YWwgaG9va3MgYXBsaWNhZG9zIikK' | base64 -d > /tmp/mh.py
+          python3 /tmp/mh.py
+          echo 'CONFIG_KSU_MANUAL_HOOK=y' >> arch/arm64/configs/gki_defconfig
+          echo "--- hooks por arquivo (esperado 2 cada):"; grep -c ksu_handle_ fs/open.c fs/exec.c fs/read_write.c fs/stat.c
+          # manter o vermagic LIMPO (senao os arquivos editados deixam a arvore -dirty)
+          git update-index --assume-unchanged fs/open.c fs/exec.c fs/read_write.c fs/stat.c arch/arm64/configs/gki_defconfig 2>/dev/null || true
+          echo "--- scmversion (deve seguir -gd77c4cd65aed, SEM -dirty):"; ./scripts/setlocalversion 2>/dev/null || true
 
       - name: Compilar (common + KSU-Next oficial)
         id: build
