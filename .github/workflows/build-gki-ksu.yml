@@ -12,13 +12,13 @@ on:
       gki_tag: { default: "android14-6.1-2025-07_r11" }
       manifest_branch: { default: "common-android14-6.1" }
       target: { default: "//common:kernel_aarch64_dist" }
-      ksun_ref: { default: "next" }
+      ksun_ref: { default: "legacy" }
   workflow_call:
     inputs:
       gki_tag: { type: string, default: "android14-6.1-2025-07_r11" }
       manifest_branch: { type: string, default: "common-android14-6.1" }
       target: { type: string, default: "//common:kernel_aarch64_dist" }
-      ksun_ref: { type: string, default: "next" }
+      ksun_ref: { type: string, default: "legacy" }
 
 jobs:
   build:
@@ -95,10 +95,10 @@ jobs:
           KSUN_REF="${{ inputs.ksun_ref }}"
           # setup.sh OFICIAL do rifsxd (KernelSU-Next/KernelSU-Next). $KSUN_REF = tag a dar checkout.
           ( cd common && curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/${KSUN_REF}/kernel/setup.sh" | bash -s "$KSUN_REF" )
-          # 🔧 o setup.sh cai no branch default se o `git checkout next` falhar (pathspec) -> forcar next
-          # (o next e quem tem CONFIG_KSU_MANUAL_HOOK). Full clone tem origin/*, entao fetch+checkout basta.
-          ( cd common/KernelSU-Next && git remote set-branches origin '*' 2>/dev/null; git fetch -q origin next && git checkout -B next origin/next && echo "KSU em next: $(git rev-parse --short HEAD)" ) || { echo "🔴 checkout next falhou"; exit 1; }
-          grep -q "config KSU_MANUAL_HOOK" common/KernelSU-Next/kernel/Kconfig || { echo "🔴 next sem KSU_MANUAL_HOOK no Kconfig"; exit 1; }
+          # 🔧 branch com manual hooks = LEGACY (dev/stable sao kprobes-only). Forcar checkout legacy.
+          # (dev/stable NAO tem KSU_MANUAL_HOOK; so o branch `legacy` tem). Full clone tem origin/*.
+          ( cd common/KernelSU-Next && git remote set-branches origin '*' 2>/dev/null; git fetch -q origin legacy && git checkout -B legacy origin/legacy && echo "KSU em legacy: $(git rev-parse --short HEAD)" ) || { echo "🔴 checkout next falhou"; exit 1; }
+          grep -q "config KSU_MANUAL_HOOK" common/KernelSU-Next/kernel/Kconfig || { echo "🔴 legacy sem KSU_MANUAL_HOOK no Kconfig"; exit 1; }
           # o setup cria drivers/kernelsu (symlink) + KernelSU-Next/ e edita Kconfig/Makefile de drivers/
           ls -d common/KernelSU-Next 2>/dev/null || ls -l common/drivers/kernelsu 2>/dev/null || { echo "🔴 setup.sh falhou"; exit 1; }
           echo "--- versao KSU-Next integrada:"; ( cd common/KernelSU-Next 2>/dev/null && git describe --tags 2>/dev/null || cat kernel/Makefile 2>/dev/null | grep -m1 -i version || true )
