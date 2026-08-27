@@ -12,13 +12,13 @@ on:
       gki_tag: { default: "android14-6.1-2025-07_r11" }
       manifest_branch: { default: "common-android14-6.1" }
       target: { default: "//common:kernel_aarch64_dist" }
-      ksun_ref: { default: "legacy" }
+      ksun_ref: { default: "v3.3.0" }
   workflow_call:
     inputs:
       gki_tag: { type: string, default: "android14-6.1-2025-07_r11" }
       manifest_branch: { type: string, default: "common-android14-6.1" }
       target: { type: string, default: "//common:kernel_aarch64_dist" }
-      ksun_ref: { type: string, default: "legacy" }
+      ksun_ref: { type: string, default: "v3.3.0" }
 
 jobs:
   build:
@@ -95,10 +95,6 @@ jobs:
           KSUN_REF="${{ inputs.ksun_ref }}"
           # setup.sh OFICIAL do rifsxd (KernelSU-Next/KernelSU-Next). $KSUN_REF = tag a dar checkout.
           ( cd common && curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/${KSUN_REF}/kernel/setup.sh" | bash -s "$KSUN_REF" )
-          # 🔧 branch com manual hooks = LEGACY (dev/stable sao kprobes-only). Forcar checkout legacy.
-          # (dev/stable NAO tem KSU_MANUAL_HOOK; so o branch `legacy` tem). Full clone tem origin/*.
-          ( cd common/KernelSU-Next && git remote set-branches origin '*' 2>/dev/null; git fetch -q origin legacy && git checkout -B legacy origin/legacy && echo "KSU em legacy: $(git rev-parse --short HEAD)" ) || { echo "🔴 checkout next falhou"; exit 1; }
-          grep -q "config KSU_MANUAL_HOOK" common/KernelSU-Next/kernel/Kconfig || { echo "🔴 legacy sem KSU_MANUAL_HOOK no Kconfig"; exit 1; }
           # o setup cria drivers/kernelsu (symlink) + KernelSU-Next/ e edita Kconfig/Makefile de drivers/
           ls -d common/KernelSU-Next 2>/dev/null || ls -l common/drivers/kernelsu 2>/dev/null || { echo "🔴 setup.sh falhou"; exit 1; }
           echo "--- versao KSU-Next integrada:"; ( cd common/KernelSU-Next 2>/dev/null && git describe --tags 2>/dev/null || cat kernel/Makefile 2>/dev/null | grep -m1 -i version || true )
@@ -116,31 +112,6 @@ jobs:
           # manter o git-describe LIMPO (senao o KSU deixa a arvore -dirty e o vermagic viraria ...-dirty).
           ( cd common && git update-index --assume-unchanged $(git ls-files -m) 2>/dev/null || true )
           echo "--- scmversion (deve ser -gd77c4cd65aed, SEM -dirty):"; ( cd common && ./scripts/setlocalversion 2>/dev/null || true )
-
-      - name: Manual hooks (non-kprobe, esconde o sucompat SCA)
-        run: |
-          # Fase 2 stealth: o "sucompat SCA" detecta os hooks por KPROBE. O KSU-Next `legacy` tem
-          # CONFIG_KSU_MANUAL_HOOK (hooks inline no source). Assinaturas casadas com o legacy
-          # (open/exec/read/stat/reboot); reboot.c e a SENTINELA que o Kbuild do legacy exige.
-          cd "$WS/common"
-          echo 'IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwojIE1hbnVhbCAobm9uLWtwcm9iZSkgc3lzY2FsbCBob29rcyBwLyBLZXJuZWxTVS1OZXh0IGJyYW5jaCBMRUdBQ1kgKENPTkZJR19LU1VfTUFOVUFMX0hPT0spLgojIEFzc2luYXR1cmFzIGNhc2FkYXMgY29tIG8gbGVnYWN5OiBmZWF0dXJlL3N1Y29tcGF0LmMgKGZhY2Nlc3NhdC9zdGF0KSwgY29yZS9pbml0LmMgKGV4ZWN2ZWF0KSwKIyBydW50aW1lL2tzdWRfaW50ZWdyYXRpb24uYyAocmVhZDogdm9pZCBrc3VfaGFuZGxlX3N5c19yZWFkKGZkKSArIGJvb2wga3N1X3Zmc19yZWFkX2hvb2spLAojIHN1cGVyY2FsbC9zdXBlcmNhbGwuYyAoaW50IGtzdV9oYW5kbGVfc3lzX3JlYm9vdChpbnQsaW50LHVuc2lnbmVkIGludCx2b2lkIF9fdXNlciAqKmFyZykpLgojIE8gS2J1aWxkIGRvIGxlZ2FjeSBleGlnZSBga3N1X2hhbmRsZV9zeXNfcmVib290YCBlbSBrZXJuZWwvcmVib290LmMgKHNlbnRpbmVsYSBkbyBtYW51YWwgaG9vaykuCiMgQW5jaG9ycyBkbyBjb21tb24gYW5kcm9pZDE0LTYuMSBAZDc3YzRjZDY1YWVkLiBGYWxoYSBhbHRvIHNlIHVtIGFuY2hvciBuYW8gYmF0ZXIuCmltcG9ydCBzeXMKCmRlZiBwYXRjaChwYXRoLCBlZGl0cyk6CiAgICBzID0gb3BlbihwYXRoLCBlbmNvZGluZz0idXRmLTgiKS5yZWFkKCkKICAgIGZvciBvbGQsIG5ldyBpbiBlZGl0czoKICAgICAgICBuID0gcy5jb3VudChvbGQpCiAgICAgICAgaWYgbiAhPSAxOgogICAgICAgICAgICBzeXMuZXhpdChmIntwYXRofTogYW5jaG9yIHh7bn0gKGVzcGVyYXZhIDEpOiB7b2xkWzo1NV0hcn0iKQogICAgICAgIHMgPSBzLnJlcGxhY2Uob2xkLCBuZXcsIDEpCiAgICBvcGVuKHBhdGgsICJ3IiwgZW5jb2Rpbmc9InV0Zi04Iikud3JpdGUocykKICAgIHByaW50KCJwYXRjaGVkIiwgcGF0aCkKCnBhdGNoKCJmcy9vcGVuLmMiLCBbCiAgICAoInN0YXRpYyBsb25nIGRvX2ZhY2Nlc3NhdChpbnQgZGZkLCBjb25zdCBjaGFyIF9fdXNlciAqZmlsZW5hbWUsIGludCBtb2RlLCBpbnQgZmxhZ3MpXG57IiwKICAgICAiI2lmZGVmIENPTkZJR19LU1VcbmV4dGVybiBpbnQga3N1X2hhbmRsZV9mYWNjZXNzYXQoaW50ICpkZmQsIGNvbnN0IGNoYXIgX191c2VyICoqZmlsZW5hbWVfdXNlciwgaW50ICptb2RlLCBpbnQgKmZsYWdzKTtcbiNlbmRpZlxuc3RhdGljIGxvbmcgZG9fZmFjY2Vzc2F0KGludCBkZmQsIGNvbnN0IGNoYXIgX191c2VyICpmaWxlbmFtZSwgaW50IG1vZGUsIGludCBmbGFncylcbnsiKSwKICAgICgiXHRjb25zdCBzdHJ1Y3QgY3JlZCAqb2xkX2NyZWQgPSBOVUxMO1xuIiwKICAgICAiXHRjb25zdCBzdHJ1Y3QgY3JlZCAqb2xkX2NyZWQgPSBOVUxMO1xuI2lmZGVmIENPTkZJR19LU1Vcblx0a3N1X2hhbmRsZV9mYWNjZXNzYXQoJmRmZCwgJmZpbGVuYW1lLCAmbW9kZSwgTlVMTCk7XG4jZW5kaWZcbiIpLApdKQoKcGF0Y2goImZzL2V4ZWMuYyIsIFsKICAgICgic3RhdGljIGludCBkb19leGVjdmVhdF9jb21tb24oaW50IGZkLCBzdHJ1Y3QgZmlsZW5hbWUgKmZpbGVuYW1lLCIsCiAgICAgIiNpZmRlZiBDT05GSUdfS1NVXG5leHRlcm4gaW50IGtzdV9oYW5kbGVfZXhlY3ZlYXQoaW50ICpmZCwgc3RydWN0IGZpbGVuYW1lICoqZmlsZW5hbWVfcHRyLCB2b2lkICphcmd2LCB2b2lkICplbnZwLCBpbnQgKmZsYWdzKTtcbiNlbmRpZlxuc3RhdGljIGludCBkb19leGVjdmVhdF9jb21tb24oaW50IGZkLCBzdHJ1Y3QgZmlsZW5hbWUgKmZpbGVuYW1lLCIpLAogICAgKCJcdGlmIChJU19FUlIoZmlsZW5hbWUpKVxuXHRcdHJldHVybiBQVFJfRVJSKGZpbGVuYW1lKTtcblxuXHQvKlxuXHQgKiBXZSBtb3ZlIHRoZSBhY3R1YWwgZmFpbHVyZSBpbiBjYXNlIG9mIFJMSU1JVF9OUFJPQyBleGNlc3MgZnJvbSIsCiAgICAgIlx0aWYgKElTX0VSUihmaWxlbmFtZSkpXG5cdFx0cmV0dXJuIFBUUl9FUlIoZmlsZW5hbWUpO1xuI2lmZGVmIENPTkZJR19LU1Vcblx0a3N1X2hhbmRsZV9leGVjdmVhdCgmZmQsICZmaWxlbmFtZSwgJmFyZ3YsICZlbnZwLCAmZmxhZ3MpO1xuI2VuZGlmXG5cblx0Lypcblx0ICogV2UgbW92ZSB0aGUgYWN0dWFsIGZhaWx1cmUgaW4gY2FzZSBvZiBSTElNSVRfTlBST0MgZXhjZXNzIGZyb20iKSwKXSkKCnBhdGNoKCJmcy9yZWFkX3dyaXRlLmMiLCBbCiAgICAoInNzaXplX3Qga3N5c19yZWFkKHVuc2lnbmVkIGludCBmZCwgY2hhciBfX3VzZXIgKmJ1Ziwgc2l6ZV90IGNvdW50KVxue1xuXHRzdHJ1Y3QgZmQgZiA9IGZkZ2V0X3BvcyhmZCk7XG5cdHNzaXplX3QgcmV0ID0gLUVCQURGO1xuIiwKICAgICAiI2lmZGVmIENPTkZJR19LU1VcbmV4dGVybiBib29sIGtzdV92ZnNfcmVhZF9ob29rO1xuZXh0ZXJuIHZvaWQga3N1X2hhbmRsZV9zeXNfcmVhZCh1bnNpZ25lZCBpbnQgZmQpO1xuI2VuZGlmXG5zc2l6ZV90IGtzeXNfcmVhZCh1bnNpZ25lZCBpbnQgZmQsIGNoYXIgX191c2VyICpidWYsIHNpemVfdCBjb3VudClcbntcblx0c3RydWN0IGZkIGYgPSBmZGdldF9wb3MoZmQpO1xuXHRzc2l6ZV90IHJldCA9IC1FQkFERjtcbiNpZmRlZiBDT05GSUdfS1NVXG5cdGlmICh1bmxpa2VseShrc3VfdmZzX3JlYWRfaG9vaykpXG5cdFx0a3N1X2hhbmRsZV9zeXNfcmVhZChmZCk7XG4jZW5kaWZcbiIpLApdKQoKcGF0Y2goImZzL3N0YXQuYyIsIFsKICAgICgiaW50IHZmc19mc3RhdGF0KGludCBkZmQsIGNvbnN0IGNoYXIgX191c2VyICpmaWxlbmFtZSxcblx0XHRcdCAgICAgIHN0cnVjdCBrc3RhdCAqc3RhdCwgaW50IGZsYWdzKVxue1xuXHRpbnQgcmV0O1xuXHRpbnQgc3RhdHhfZmxhZ3MgPSBmbGFncyB8IEFUX05PX0FVVE9NT1VOVDtcblx0c3RydWN0IGZpbGVuYW1lICpuYW1lO1xuIiwKICAgICAiI2lmZGVmIENPTkZJR19LU1VcbmV4dGVybiBpbnQga3N1X2hhbmRsZV9zdGF0KGludCAqZGZkLCBjb25zdCBjaGFyIF9fdXNlciAqKmZpbGVuYW1lX3VzZXIsIGludCAqZmxhZ3MpO1xuI2VuZGlmXG5pbnQgdmZzX2ZzdGF0YXQoaW50IGRmZCwgY29uc3QgY2hhciBfX3VzZXIgKmZpbGVuYW1lLFxuXHRcdFx0ICAgICAgc3RydWN0IGtzdGF0ICpzdGF0LCBpbnQgZmxhZ3MpXG57XG5cdGludCByZXQ7XG5cdGludCBzdGF0eF9mbGFncyA9IGZsYWdzIHwgQVRfTk9fQVVUT01PVU5UO1xuXHRzdHJ1Y3QgZmlsZW5hbWUgKm5hbWU7XG4jaWZkZWYgQ09ORklHX0tTVVxuXHRrc3VfaGFuZGxlX3N0YXQoJmRmZCwgJmZpbGVuYW1lLCAmZmxhZ3MpO1xuI2VuZGlmXG4iKSwKXSkKCnBhdGNoKCJrZXJuZWwvcmVib290LmMiLCBbCiAgICAoIlNZU0NBTExfREVGSU5FNChyZWJvb3QsIGludCwgbWFnaWMxLCBpbnQsIG1hZ2ljMiwgdW5zaWduZWQgaW50LCBjbWQsXG5cdFx0dm9pZCBfX3VzZXIgKiwgYXJnKVxue1xuXHRzdHJ1Y3QgcGlkX25hbWVzcGFjZSAqcGlkX25zID0gdGFza19hY3RpdmVfcGlkX25zKGN1cnJlbnQpO1xuXHRjaGFyIGJ1ZmZlclsyNTZdO1xuXHRpbnQgcmV0ID0gMDtcbiIsCiAgICAgIiNpZmRlZiBDT05GSUdfS1NVXG5leHRlcm4gaW50IGtzdV9oYW5kbGVfc3lzX3JlYm9vdChpbnQgbWFnaWMxLCBpbnQgbWFnaWMyLCB1bnNpZ25lZCBpbnQgY21kLCB2b2lkIF9fdXNlciAqKmFyZyk7XG4jZW5kaWZcblNZU0NBTExfREVGSU5FNChyZWJvb3QsIGludCwgbWFnaWMxLCBpbnQsIG1hZ2ljMiwgdW5zaWduZWQgaW50LCBjbWQsXG5cdFx0dm9pZCBfX3VzZXIgKiwgYXJnKVxue1xuXHRzdHJ1Y3QgcGlkX25hbWVzcGFjZSAqcGlkX25zID0gdGFza19hY3RpdmVfcGlkX25zKGN1cnJlbnQpO1xuXHRjaGFyIGJ1ZmZlclsyNTZdO1xuXHRpbnQgcmV0ID0gMDtcbiNpZmRlZiBDT05GSUdfS1NVXG5cdGtzdV9oYW5kbGVfc3lzX3JlYm9vdChtYWdpYzEsIG1hZ2ljMiwgY21kLCAmYXJnKTtcbiNlbmRpZlxuIiksCl0pCgpwcmludCgiT0s6IG1hbnVhbCBob29rcyAobGVnYWN5KSBhcGxpY2Fkb3Mg4oCUIG9wZW4vZXhlYy9yZWFkL3N0YXQvcmVib290IikK' | base64 -d > /tmp/mh.py
-          python3 /tmp/mh.py
-          # Ligar o manual hook pelo DEFAULT do Kconfig do KSU (nao no gki_defconfig: quebra savedefconfig).
-          sed -i 's/default y if !KPROBES/default y/' KernelSU-Next/kernel/Kconfig
-          # COMPAT 6.1: este android common usa a assinatura LSM PLANA (sem user_namespace/mnt_idmap)
-          # em inode_permission/inode_rename (confirmado no lsm_hook_defs.h). O legacy escolhe userns
-          # p/ 5.12<=ver<6.3 -> mismatch. Forcar o ramo #else (plano) nesses 2 (os unicos guards 5.12).
-          sed -i 's/LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0)/LINUX_VERSION_CODE >= KERNEL_VERSION(9, 9, 9)/g' KernelSU-Next/kernel/hook/lsm_hooks.c
-          # o codigo do legacy dispara varios -Werror (implicit-fallthrough etc.) no build estrito do
-          # GKI. Relaxa os warnings SO do modulo KSU (nao toca a logica nem o resto do kernel).
-          echo 'ccflags-y += -Wno-error' >> KernelSU-Next/kernel/Kbuild
-          echo "--- ccflags KSU:"; tail -2 KernelSU-Next/kernel/Kbuild
-          echo "--- lsm_hooks guards apos compat:"; grep -c "KERNEL_VERSION(9, 9, 9)" KernelSU-Next/kernel/hook/lsm_hooks.c
-          echo "--- hooks por arquivo:"; grep -c ksu_handle_ fs/open.c fs/exec.c fs/read_write.c fs/stat.c kernel/reboot.c
-          echo "--- Kbuild sentinel (ksu_handle_sys_reboot em reboot.c):"; grep -c ksu_handle_sys_reboot kernel/reboot.c
-          # vermagic LIMPO: assume-unchanged nos 5 arquivos do common que editei
-          git update-index --assume-unchanged fs/open.c fs/exec.c fs/read_write.c fs/stat.c kernel/reboot.c 2>/dev/null || true
-          echo "--- scmversion:"; ./scripts/setlocalversion 2>/dev/null || true
 
       - name: Compilar (common + KSU-Next oficial)
         id: build
