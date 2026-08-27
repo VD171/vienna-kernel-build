@@ -127,6 +127,11 @@ jobs:
           python3 /tmp/mh.py
           # Ligar o manual hook pelo DEFAULT do Kconfig do KSU (nao no gki_defconfig: quebra savedefconfig).
           sed -i 's/default y if !KPROBES/default y/' KernelSU-Next/kernel/Kconfig
+          # COMPAT 6.1: este android common usa a assinatura LSM PLANA (sem user_namespace/mnt_idmap)
+          # em inode_permission/inode_rename (confirmado no lsm_hook_defs.h). O legacy escolhe userns
+          # p/ 5.12<=ver<6.3 -> mismatch. Forcar o ramo #else (plano) nesses 2 (os unicos guards 5.12).
+          sed -i 's/LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0)/LINUX_VERSION_CODE >= KERNEL_VERSION(9, 9, 9)/g' KernelSU-Next/kernel/hook/lsm_hooks.c
+          echo "--- lsm_hooks guards apos compat:"; grep -c "KERNEL_VERSION(9, 9, 9)" KernelSU-Next/kernel/hook/lsm_hooks.c
           echo "--- hooks por arquivo:"; grep -c ksu_handle_ fs/open.c fs/exec.c fs/read_write.c fs/stat.c kernel/reboot.c
           echo "--- Kbuild sentinel (ksu_handle_sys_reboot em reboot.c):"; grep -c ksu_handle_sys_reboot kernel/reboot.c
           # vermagic LIMPO: assume-unchanged nos 5 arquivos do common que editei
