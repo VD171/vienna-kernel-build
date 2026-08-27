@@ -8,11 +8,11 @@ Build do kernel do **Motorola Edge 60 Neo** (`vienna`, MT6878 / Dimensity 7400) 
 > **KernelSU LKM patchado no `init_boot`**, que não precisa de build nenhum. O workflow padrão aqui
 > compila o **kernel GKI stock** (sem KernelSU) e existe para provar que a receita é byte a byte.
 >
-> 🆕 **Fase 2 (root built-in) funciona.** Um segundo workflow compila o **KernelSU-Next dentro do
-> kernel** (não LKM), mantendo a `Linux version` do stock byte a byte. Um kernel com KSU built-in feito
-> por esta receita **bootou num aparelho real** e carregou todos os device modules stock. A variante
-> atual (KernelSU-Next OFICIAL, sem SUSFS) compila e passa o gate pré-flash; a validação no aparelho
-> dessa build específica está pendente. Ver [Fase 2](#fase-2-ksu-next-built-in-a-parte-que-deu-mais-trabalho) abaixo.
+> 🆕 **Fase 2 (root built-in) está pronta.** Um segundo workflow compila o **KernelSU-Next dentro do
+> kernel** (não LKM), mantendo a `Linux version` do stock byte a byte. Medido num aparelho real: boota,
+> o `su` devolve uid 0, e o **Wi-Fi funciona** com o `vendor_dlkm` stock intocado. Fazer o Wi-Fi subir
+> se resumiu aos [GKI protected exports](#-a-armadilha-que-come-o-seu-wi-fi-os-gki-protected-exports),
+> que é a coisa mais útil deste repo. Ver [Fase 2](#fase-2-ksu-next-built-in-a-parte-que-deu-mais-trabalho).
 
 ## Status
 
@@ -22,7 +22,7 @@ Build do kernel do **Motorola Edge 60 Neo** (`vienna`, MT6878 / Dimensity 7400) 
 | `Linux version` do stock | ✅ reproduzida **byte a byte** vs a build de fábrica |
 | Device modules | ✅ **reusa o `vendor_dlkm` stock** (GKI/KMI, mesmo vermagic); compilá-los da fonte é barrado pelo `vendor/mediatek` proprietário, e não é preciso |
 | Fase 2: um kernel com **KSU built-in** boota | ✅ medido no aparelho: subiu o Android, **424 device modules carregados, 0 erro de vermagic**, `lsmod` sem kernelsu (é built-in, não LKM) |
-| Fase 2: **KSU-Next OFICIAL, sem SUSFS** | 🟡 compila, boota e o driver do KSU roda. **Mas o Wi-Fi não sobe**, então não serve de daily e não tem release. Ver [a pegadinha](#-a-pegadinha-o-common-puro-custa-o-wi-fi) |
+| Fase 2: **KSU-Next OFICIAL built-in, sem SUSFS** | ✅ **completa**: boota, rooteia e o **Wi-Fi funciona**, com o `vendor_dlkm` stock intocado. O último bloqueio eram os [GKI protected exports](#-a-armadilha-que-come-o-seu-wi-fi-os-gki-protected-exports) |
 | Boota no aparelho | ✅ validado no aparelho do mantenedor (stock e Fase 2) |
 
 ## O que este repo responde
@@ -91,33 +91,43 @@ O `common` puro **bootou**. Depois `common` + KSU-Next built-in **bootou**, cheg
 `vendor_dlkm` stock aceita o nosso kernel. Bônus: nesse caminho o vermagic sai natural do
 `git describe`, então o hack do `.scmversion` que a receita do stock exige fica desnecessário.
 
-### 🪤 A pegadinha: o `common` puro custa o Wi-Fi
+### 🪤 A armadilha que come o seu Wi-Fi: os GKI protected exports
 
-O Path B resolve o panic, e tem um preço que você precisa saber antes de flashar qualquer coisa.
+Esta vale a página inteira, porque ela é invisível a todo teste que você normalmente faria.
 
-Um kernel feito assim **boota, chega ao Android, carrega os 424 device modules stock e roda o driver
-do KernelSU** (medido: o driver lê a `packages.list`, ou seja está vivo e não é o fallback `v0.0.1`).
-**O Wi-Fi não sobe.** O log do kernel repete:
+Um kernel GKI custom boota, carrega centenas de device modules stock, e aí o **Wi-Fi simplesmente não
+sobe**:
 
 ```
 [MTK-WIFI] WIFI_write[E]: Wi-Fi driver is not ready for 2s
 ```
 
-O motivo é estrutural, não é configuração errada: a integração de Wi-Fi da MediaTek (connac2) mora na
-**árvore de kernel da MediaTek**, e o Path B deliberadamente não usa aquela árvore, porque é ela que
-miscompila e gera o panic no init. Então as duas opções se contrapõem:
+A config bate com o aparelho. A string de versão bate. Os device modules carregam. Nada dá erro
+óbvio. A causa é que **você assinou o kernel com a sua chave**. O Google marca parte da superfície de
+símbolos do GKI como *protected exports*, e os módulos GKI stock que formam a cadeia wireless
+(`rfkill`, `cfg80211`, `mac80211`) são assinados pelo Google. Contra um kernel assinado por você eles
+contam como não-assinados, então não resolvem os símbolos protegidos e a cadeia nunca sobe. O driver
+da MediaTek fica esperando uma stack que nunca vai inicializar.
 
-| | boota | Wi-Fi | por quê |
-|---|---|---|---|
-| árvore da MediaTek | **não**, panica no init | funcionaria | tem a integração de Wi-Fi do vendor, e miscompila |
-| `common` puro do AOSP (Path B) | **sim** | **não** | build correto, sem a integração de Wi-Fi do vendor |
+**A correção são duas linhas**, aplicadas no `common` antes de compilar:
 
-É por isso que **não existe release deste kernel aqui**, e por isso o aparelho em que isto foi
-desenvolvido roda o root por LKM da [release de root](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-MMI-W1UIS36H.39-17-8):
-em LKM o kernel continua stock, então o Wi-Fi continua funcionando.
+```bash
+sed -i '/protected_exports_list/d' BUILD.bazel
+rm -f android/abi_gki_protected_exports_*
+```
 
-Fechar essa lacuna é ou consertar o build da árvore da MediaTek, ou portar a integração do connac2
-para o `common`. Nenhum dos dois está feito. Se você conseguir um deles, abra uma issue.
+Ela é invisível a um diff de defconfig porque mora no `BUILD.bazel`, não no Kconfig. Combine com
+`--notrim`, para a KMI não ser podada até a lista base de símbolos: os device modules stock precisam
+de símbolos além dela.
+
+Resultado, medido no aparelho: **Wi-Fi no ar e conectado, com a stack connac2 inteira carregada do
+`vendor_dlkm` STOCK** (`rfkill`, `cfg80211`, `mac80211`, `wlan_drv_gen4m_6878`, `conninfra`,
+`connfem`, `connadp`, `mddp`), `su` devolvendo uid 0 com o KernelSU built-in, e `dmesg` sem erro de
+módulo.
+
+> 🪤 **O beco sem saída que percorremos antes:** recompilar o driver Wi-Fi `connac2` da MediaTek
+> contra o `common`. Ele até compilou, e **não** era a resposta. O `vendor_dlkm` deve ficar **stock**.
+> O problema nunca foi driver faltando, era uma fronteira de assinatura.
 
 ### Por que sem SUSFS
 
