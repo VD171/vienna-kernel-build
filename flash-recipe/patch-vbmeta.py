@@ -43,18 +43,24 @@ TAG_HASH_DESCRIPTOR = 2
 def _read_header(blob):
     if blob[:4] != AVB_MAGIC:
         sys.exit("not an AVB vbmeta image (bad magic)")
-    # offsets/sizes we need live at fixed places in the 256 byte header
-    auth_size = struct.unpack_from(">Q", blob, 24)[0]
-    aux_size = struct.unpack_from(">Q", blob, 32)[0]
-    return auth_size, aux_size
+    # AvbVBMetaImageHeader (big-endian), fixed offsets in the 256-byte header:
+    #   +12 authentication_data_block_size (u64)
+    #   +20 auxiliary_data_block_size      (u64)
+    #   +96 descriptors_offset             (u64, relative to the start of the aux block)
+    #  +104 descriptors_size               (u64)
+    # (fix 2026-09-02: liam-se auth/aux em 24/32 -> nunca se achava o descritor.)
+    auth_size = struct.unpack_from(">Q", blob, 12)[0]
+    aux_size = struct.unpack_from(">Q", blob, 20)[0]
+    desc_off = struct.unpack_from(">Q", blob, 96)[0]
+    desc_size = struct.unpack_from(">Q", blob, 104)[0]
+    return auth_size, aux_size, desc_off, desc_size
 
 
 def find_boot_descriptor(blob, partition=b"boot"):
     """Return (abs_offset_of_payload, parsed fields) for the hash descriptor of `partition`."""
-    auth_size, aux_size = _read_header(blob)
-    aux_start = HEADER_SIZE + auth_size
-    off = aux_start
-    end = aux_start + aux_size
+    auth_size, aux_size, desc_off, desc_size = _read_header(blob)
+    off = HEADER_SIZE + auth_size + desc_off
+    end = off + desc_size
     while off < end:
         tag, num_following = struct.unpack_from(">QQ", blob, off)
         payload = off + 16
@@ -62,7 +68,7 @@ def find_boot_descriptor(blob, partition=b"boot"):
             image_size = struct.unpack_from(">Q", blob, payload)[0]
             hash_algo = blob[payload + 8:payload + 40].rstrip(b"\0")
             name_len, salt_len, digest_len = struct.unpack_from(">III", blob, payload + 40)
-            strings = payload + 60
+            strings = payload + 116  # +8(image_size)+32(hash_algo)+12(3xu32)+4(flags)+60(reserved)
             name = blob[strings:strings + name_len]
             salt = blob[strings + name_len:strings + name_len + salt_len]
             digest_off = strings + name_len + salt_len
