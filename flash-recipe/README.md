@@ -64,3 +64,28 @@ should not be here.
   KernelSU is a module or built in) instead of trusting that the screen came up.
 - **`fastboot getvar securestate`** is the real answer for the lock state. `getprop` values can be
   spoofed at runtime and tell you what the userspace wants you to hear.
+
+## Getting `vbmeta_stock.img` (and why the release has no vbmeta)
+
+The `custom-*` releases ship `boot--*.img` and `kernel--*.Image.gz` but **no `vbmeta`** — the vbmeta is
+per-descriptor-salt and is meant to be regenerated locally with `patch-vbmeta.py`. Use the **stock**
+vbmeta as the base (it carries the `boot` hash descriptor with Motorola's salt, every hashtree intact):
+
+```bash
+# from this repo's stock release (public, contains the boot descriptor + salt)
+gh release download stock-MMI-W1UIS36H.39-17-8 -R VD171/vienna-kernel-build -p 'vbmeta--*.img'
+./make-boot.sh Image.gz vbmeta--W1UIS36H.39-17-8.img out/
+python3 patch-vbmeta.py vbmeta--W1UIS36H.39-17-8.img out/boot-raw.img out/vbmeta-new.img
+fastboot flash vbmeta out/vbmeta-new.img && fastboot flash boot out/boot-new.img
+```
+
+> ⚠️ **`patch-vbmeta.py` was broken until 2026-09-02** — it read the AVB header's auth/aux block sizes at
+> the wrong offsets (24/32 instead of 12/20) and the descriptor's partition name at `payload+60` instead
+> of `+116`, so it reported *"no hash descriptor for partition 'boot'"* on a vbmeta where `avbtool` finds
+> it fine. Flashing `boot` without the matching patched vbmeta → **bootloop** (the bootloader preflash
+> checks the boot digest against the vbmeta already on the device). Fixed + proven (reproduces the stock
+> `cc165019…` digest). If you pulled an older copy, re-fetch it.
+
+**TODO (pipeline):** have the build emit `boot--*` **and** `vbmeta--*` as release assets so the release is
+flashable as-is — needs `mkbootimg` (from the synced kernel tree) + a standalone `avbtool.py`; neither is
+on PyPI.
