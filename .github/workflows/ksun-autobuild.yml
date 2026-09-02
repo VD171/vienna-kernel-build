@@ -1,53 +1,57 @@
 name: KSU-Next autobuild (segue o CI/dev HEAD -> rebuilda o kernel built-in)
 
-# Lado GITHUB da automacao (25/08/2026; passou a seguir o CI em 31/08/2026). Cron diario: se o HEAD
-# do branch DEFAULT (dev) do KernelSU-Next OFICIAL (rifsxd) mudar, bumpa o `ksun_ref` default do
-# build-gki-ksu.yml para esse commit e dispara o build (artefato pronto). Segue o CI (o canal
-# @ksunext_ci compila esses mesmos commits, e e' de la que o AndroidUpdate instala o MANAGER) em vez
-# da release TAG, que fica dezenas de commits atras. NAO flasha (regra do dono: flash so manual, e
-# driver+manager ALINHADOS -> o driver sobe aqui, o manager e' acompanhado pelo AndroidSync).
+# Lado GITHUB da automacao (25/08/2026; segue o CI desde 31/08). FIX 02/09/2026: parou de commitar/
+# pushar o bump DENTRO do build-gki-ksu.yml -- o GITHUB_TOKEN das Actions nao tem permissao `workflows`
+# e o push era REJEITADO ("refusing to allow a GitHub App to create or update workflow ... without
+# workflows permission"), travando o autobuild desde 01/09. Agora o dev HEAD vai DIRETO pro build via
+# output do job (needs.detect.outputs.latest), e o "ja buildei este SHA?" fica no actions/cache -- SEM
+# push nenhum. Cron diario: se o HEAD do branch default (dev) do KSU-Next OFICIAL mudou e ainda nao foi
+# buildado, dispara o build. Segue o CI (@ksunext_ci compila esses commits; e' de la que o AndroidUpdate
+# instala o MANAGER) em vez da release TAG. NAO flasha (flash so manual; driver sobe aqui, manager alinhado
+# pelo AndroidSync).
 on:
   schedule:
     - cron: "17 6 * * *"   # 06:17 UTC diario
   workflow_dispatch:
 
 permissions:
-  contents: write   # commit do bump
+  contents: write   # o job de build publica a release
 
 jobs:
   detect:
     runs-on: ubuntu-latest
     outputs:
-      latest: ${{ steps.check.outputs.latest }}
+      latest: ${{ steps.head.outputs.latest }}
       changed: ${{ steps.check.outputs.changed }}
     steps:
-      - uses: actions/checkout@v4
-      - id: check
+      - id: head
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -e
-          # SEGUE O CI: HEAD do branch default (dev) do KSU-Next OFICIAL — e' o commit que o canal
-          # @ksunext_ci compila (o manager que o AndroidUpdate instala) e o que o driver deve casar.
-          # Antes seguia a release TAG (gh release view), que fica dezenas de commits atras do CI.
+          # SEGUE O CI: HEAD do branch default (dev) do KSU-Next OFICIAL — o commit que o @ksunext_ci
+          # compila (o manager que o AndroidUpdate instala) e o que o driver built-in deve casar.
           DEFBR=$(gh api repos/KernelSU-Next/KernelSU-Next -q .default_branch)
           LATEST=$(gh api "repos/KernelSU-Next/KernelSU-Next/commits/$DEFBR" -q .sha)
-          CUR=$(grep -oE 'ksun_ref: \{ default: "[^"]+"' .github/workflows/build-gki-ksu.yml | head -1 | grep -oE '"[^"]+"$' | tr -d '"')
-          echo "KSU-Next dev($DEFBR) HEAD=$LATEST | ref atual no repo=$CUR"
+          [ -n "$LATEST" ] || { echo "sem HEAD do dev"; exit 1; }
+          echo "KSU-Next dev($DEFBR) HEAD=$LATEST"
           echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
-          if [ -z "$LATEST" ] || [ "$LATEST" = "$CUR" ]; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"; echo "dev sem commit novo, nada a fazer."; exit 0
+      # "ja buildei este SHA?" -> cache (sem push). HIT = ja buildado (skip); MISS = build.
+      - id: seen
+        uses: actions/cache/restore@v4
+        with:
+          path: .ksun-built
+          key: ksun-built-${{ steps.head.outputs.latest }}
+          lookup-only: true
+      - id: check
+        run: |
+          if [ "${{ steps.seen.outputs.cache-hit }}" = "true" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "SHA ${{ steps.head.outputs.latest }} ja buildado (cache hit) — nada a fazer."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "dev HEAD novo — vai buildar."
           fi
-          echo "changed=true" >> "$GITHUB_OUTPUT"
-          # bumpa o default nos DOIS workflows (dispatch e call inputs ficam no mesmo arquivo).
-          # ksun_ref = commit SHA: o setup.sh do KSU-Next faz clone completo + `git checkout <sha>`
-          # (SHA funciona onde a tag funcionava), e o raw.githubusercontent resolve o SHA. (31/08/2026)
-          sed -i "s/ksun_ref: { default: \"[^\"]*\"/ksun_ref: { default: \"$LATEST\"/; s/ksun_ref: { type: string, default: \"[^\"]*\"/ksun_ref: { type: string, default: \"$LATEST\"/" .github/workflows/build-gki-ksu.yml
-          git config user.name  "vienna-ci"
-          git config user.email "ci@localhost"
-          git commit -am "auto: bump KSU-Next built-in $CUR -> $LATEST (dev HEAD / segue o CI)"
-          git push
-          echo "bump commitado: $CUR -> $LATEST"
 
   build:
     needs: detect
@@ -55,3 +59,15 @@ jobs:
     uses: ./.github/workflows/build-gki-ksu.yml
     with:
       ksun_ref: ${{ needs.detect.outputs.latest }}
+
+  # marca o SHA como buildado SO' apos o build OK (build que falha retenta no proximo cron)
+  mark:
+    needs: [detect, build]
+    if: needs.detect.outputs.changed == 'true' && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - run: printf '%s' "${{ needs.detect.outputs.latest }}" > .ksun-built
+      - uses: actions/cache/save@v4
+        with:
+          path: .ksun-built
+          key: ksun-built-${{ needs.detect.outputs.latest }}
