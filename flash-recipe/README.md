@@ -89,3 +89,23 @@ fastboot flash vbmeta out/vbmeta-new.img && fastboot flash boot out/boot-new.img
 **TODO (pipeline):** have the build emit `boot--*` **and** `vbmeta--*` as release assets so the release is
 flashable as-is — needs `mkbootimg` (from the synced kernel tree) + a standalone `avbtool.py`; neither is
 on PyPI.
+
+## `patch-vbmeta.py` needs the RAW boot, not the footered/padded one
+
+`patch-vbmeta.py` computes `sha256(salt ‖ whole_file)` and writes `len(file)` as the image_size. So it
+must be fed the **raw** boot (the `mkbootimg` output, *before* `avbtool add_hash_footer` and partition
+padding). If you only have a finished `boot--*.img` (footered + padded to 64 MiB, as shipped in releases),
+extract the original image first:
+
+```bash
+ORIG=$(avbtool info_image --image boot--foo.img | awk '/Image Size:/{print $3; exit}')  # e.g. 14344192
+head -c "$ORIG" boot--foo.img > boot-raw.img
+python3 patch-vbmeta.py vbmeta_stock.img boot-raw.img vbmeta-new.img
+# verify: the boot's own footer digest must equal the vbmeta boot descriptor
+avbtool info_image --image boot--foo.img | awk '/Hash descriptor/{h=1} h&&/Digest:/{print;exit}'
+avbtool info_image --image vbmeta-new.img | awk '/Partition Name: *boot/{p=1} p&&/Digest:/{print;exit}'
+```
+
+Feeding the footered 64 MiB file instead yields a wrong digest (image_size becomes 67108864) and the pair
+will **not** boot. The `custom-*` releases now ship a matching `vbmeta--*.img` so you don't need to
+regenerate unless you rebuild the boot.
