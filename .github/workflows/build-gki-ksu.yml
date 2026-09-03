@@ -20,6 +20,9 @@ on:
       target: { type: string, default: "//common:kernel_aarch64_dist" }
       ksun_ref: { type: string, default: "v3.3.0" }
 
+permissions:
+  contents: write   # publicar a release (boot+vbmeta+kernel+source)
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -47,6 +50,11 @@ jobs:
           sudo fallocate -l 24G /mnt/build/swapfile && sudo chmod 600 /mnt/build/swapfile
           sudo mkswap /mnt/build/swapfile >/dev/null && sudo swapon /mnt/build/swapfile
           free -h; df -h / /mnt/build | tail -2
+
+      - name: Checkout deste repo (flash-recipe/patch-vbmeta.py)
+        uses: actions/checkout@v4
+        with:
+          path: _repo
 
       - name: Dependencias + repo
         run: |
@@ -90,6 +98,7 @@ jobs:
           ls android/abi_gki_protected_exports_* 2>/dev/null && { echo "abi ainda existe"; exit 1; } || echo "--- abi_gki_protected_exports_* removidos OK"
 
       - name: Integrar KSU-Next OFICIAL (built-in, sem susfs)
+        id: ksu
         run: |
           cd "$WS"
           KSUN_REF="${{ inputs.ksun_ref }}"
@@ -108,6 +117,7 @@ jobs:
           KB=common/KernelSU-Next/kernel/Kbuild
           sed -i "s|^# Check if this is a git repository|KSU_GIT_VERSION := ${KV}\nKSU_GIT_TAG := ${KT}\nKSU_GIT_VERSION_VALID := 1\n# Check if this is a git repository|" "$KB"
           echo "--- BAKED KSU: KSU_GIT_VERSION=${KV}  KSU_VERSION=$((30000+KV))  tag=${KT}"
+          echo "ksu_version=$((30000+KV))" >> "$GITHUB_OUTPUT"
           grep -nE "KSU_GIT_VERSION :=|KSU_GIT_TAG :=|KSU_GIT_VERSION_VALID :=" "$KB" | head
           # manter o git-describe LIMPO (senao o KSU deixa a arvore -dirty e o vermagic viraria ...-dirty).
           ( cd common && git update-index --assume-unchanged $(git ls-files -m) 2>/dev/null || true )
@@ -155,6 +165,61 @@ jobs:
           echo "--- revisoes que compoem esta arvore (a receita, para reproduzir):"
           echo "  GKI common : ${{ inputs.gki_tag }} (android.googlesource.com/kernel/common)"
           echo "  KernelSU-Next: ${{ inputs.ksun_ref }} (github.com/KernelSU-Next/KernelSU-Next)"
+
+      - name: Empacotar boot flashavel + vbmeta patched + publicar release
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEVICE_TAG: W1UIS36H.39-17-8
+          STOCK_RELEASE: stock-MMI-W1UIS36H.39-17-8
+          KSU_VERSION: ${{ steps.ksu.outputs.ksu_version }}
+        run: |
+          set -e
+          cd "$WS/dist"
+          # boot-gz.img: direto no dist ou dentro de boot-img*.tar.gz
+          if [ ! -f boot-gz.img ]; then
+            BT=$(ls boot-img*.tar.gz boot_img*.tar.gz 2>/dev/null | head -1)
+            [ -n "$BT" ] && tar xzf "$BT" || true
+          fi
+          [ -f boot-gz.img ] || { echo "boot-gz.img ausente no dist"; ls -l; exit 1; }
+          # ferramentas: avbtool.py standalone (AOSP) + patch-vbmeta.py (repo) + vbmeta stock (release publica)
+          curl -fsSL "https://android.googlesource.com/platform/external/avb/+/refs/heads/main/avbtool.py?format=TEXT" | base64 -d > /tmp/avbtool.py
+          PV="$GITHUB_WORKSPACE/_repo/flash-recipe/patch-vbmeta.py"
+          [ -f "$PV" ] || { echo "patch-vbmeta.py ausente (checkout _repo?)"; exit 1; }
+          gh release download "$STOCK_RELEASE" -R "$GITHUB_REPOSITORY" -p 'vbmeta--*.img' -D /tmp --clobber
+          VB=$(ls /tmp/vbmeta--*.img | head -1); [ -f "$VB" ] || { echo "vbmeta stock nao baixou"; exit 1; }
+          # receita mkbootimg-free (PROVADA 02/09): boot-gz do kleaf -> re-footer salt stock -> patch vbmeta stock
+          ORIG=$(python3 /tmp/avbtool.py info_image --image boot-gz.img | awk '/Image Size:/{print $3; exit}')
+          head -c "$ORIG" boot-gz.img > boot-raw.img
+          SALT=$(python3 "$PV" --print-salt "$VB")
+          cp boot-raw.img boot-new.img
+          python3 /tmp/avbtool.py add_hash_footer --image boot-new.img --partition_name boot --partition_size 67108864 --salt "$SALT"
+          python3 "$PV" "$VB" boot-raw.img vbmeta-new.img
+          BD=$(python3 /tmp/avbtool.py info_image --image boot-new.img  | awk '/Hash descriptor/{h=1} h&&/Digest:/{print $2;exit}')
+          VD=$(python3 /tmp/avbtool.py info_image --image vbmeta-new.img | awk '/Partition Name: *boot/{p=1} p&&/Digest:/{print $2;exit}')
+          [ "$BD" = "$VD" ] || { echo "boot/vbmeta NAO casaram: $BD vs $VD"; exit 1; }
+          echo "par casado: $BD"
+          N="custom-KernelSU-Next-${KSU_VERSION}"; D="$DEVICE_TAG"
+          GZ=$(ls *.gz | grep -iE 'image' | head -1)
+          cp "$GZ"          "kernel--${N}--${D}.Image.gz"
+          cp boot-new.img   "boot--${N}--${D}.img"
+          cp vbmeta-new.img "vbmeta--${N}--${D}.img"
+          [ -f vienna-kernel-source-corresponding.tar.zst ] && cp vienna-kernel-source-corresponding.tar.zst "source--${N}--${D}.tar.zst" || true
+          SV=$(ls *symvers* 2>/dev/null | head -1); [ -n "$SV" ] && cp "$SV" "Module--${N}--${D}.symvers" || true
+          ASSETS="boot--${N}--${D}.img vbmeta--${N}--${D}.img kernel--${N}--${D}.Image.gz"
+          [ -f "source--${N}--${D}.tar.zst" ] && ASSETS="$ASSETS source--${N}--${D}.tar.zst"
+          [ -f "Module--${N}--${D}.symvers" ] && ASSETS="$ASSETS Module--${N}--${D}.symvers"
+          sha256sum $ASSETS > SHA256SUMS; ASSETS="$ASSETS SHA256SUMS"; cat SHA256SUMS
+          TAG="${N}-MMI-${D}"
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" -R "$GITHUB_REPOSITORY" $ASSETS --clobber
+          else
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" \
+              -t "Custom kernel: KernelSU-Next built-in (${KSU_VERSION}), ${D} (Android)" \
+              -n "Autobuild seguindo o KSU-Next CI. Par boot+vbmeta CASADO (${BD}) - flash o PAR, vbmeta primeiro (o boot passa o preflash). Regeneracao/receita em flash-recipe/. Kernel GPL-2.0, source correspondente anexa. AVISO: um boot built-in custom pode dar bootloop no vienna mesmo com vbmeta casado - tenha recovery fase-1 (boot stock + init_boot LKM)." \
+              $ASSETS
+          fi
+          echo "RELEASE $TAG publicada."
 
       - uses: actions/upload-artifact@v4
         if: always()
