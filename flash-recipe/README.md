@@ -86,9 +86,9 @@ fastboot flash vbmeta out/vbmeta-new.img && fastboot flash boot out/boot-new.img
 > checks the boot digest against the vbmeta already on the device). Fixed + proven (reproduces the stock
 > `cc165019…` digest). If you pulled an older copy, re-fetch it.
 
-**TODO (pipeline):** have the build emit `boot--*` **and** `vbmeta--*` as release assets so the release is
-flashable as-is — needs `mkbootimg` (from the synced kernel tree) + a standalone `avbtool.py`; neither is
-on PyPI.
+**DONE (2026-09-02):** the build (`build-gki-ksu.yml`) now emits `boot--*` **and** `vbmeta--*` (matched) as
+release assets automatically — mkbootimg-free (re-footers the kleaf `boot-gz.img` with a standalone
+`avbtool.py` + this `patch-vbmeta.py`). Every autobuild publishes a flashable release.
 
 ## `patch-vbmeta.py` needs the RAW boot, not the footered/padded one
 
