@@ -1,37 +1,37 @@
 name: build vienna kernel
 
-# Objetivo: responder UMA pergunta — o alvo GKI compila sem o `vendor/mediatek`
-# (árvore proprietária da MediaTek, que ninguém publica)?
+# Goal: answer ONE question - does the GKI target build without `vendor/mediatek`
+# (MediaTek's proprietary tree, which nobody publishes)?
 on:
   workflow_dispatch:
     inputs:
       mmi_tag:
-        description: "Tag MMI da build Motorola"
+        description: "MMI tag of the Motorola build"
         default: "MMI-W1UIS36H.39-17-8"
       manifest_branch:
-        description: "Branch do manifesto do kernel AOSP"
+        description: "AOSP kernel manifest branch"
         default: "common-android14-6.1"
       target:
-        description: "Alvo Bazel"
+        description: "Bazel target"
         default: "//kernel-6.1:kernel_aarch64_abi_dist"
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 350          # o teto do job é 360
+    timeout-minutes: 350          # the job ceiling is 360
     steps:
-      - name: Specs do runner (medir, não supor)
+      - name: Runner specs (measure, do not assume)
         run: |
           echo "cores : $(nproc)"; free -h | sed -n 2p; df -h / | tail -1
 
-      - name: Liberar disco
+      - name: Free up disk
         uses: easimon/maximize-build-space@master
         with:
           root-reserve-mb: 2048
           build-mount-path: '/mnt/build'
-          # 🪤 MEDIDO: confiar no cwd NÃO basta. No run 32609985091 o volume ficou com 24 KB
-          #    usados e a raiz foi a 100% (329 MB livres) — o build passou por sorte. A cura é
-          #    montar num caminho EXPLÍCITO e usá-lo em TODOS os passos, nunca o cwd implícito.
+          # 🪤 MEASURED: trusting the cwd is NOT enough. On run 32609985091 the volume ended up with
+          #    24 KB used and the root hit 100% (329 MB free) - the build passed by luck. The cure is to
+          #    mount on an EXPLICIT path and use it in EVERY step, never the implicit cwd.
           remove-dotnet: 'true'
           remove-android: 'true'
           remove-haskell: 'true'
@@ -40,13 +40,13 @@ jobs:
 
       - run: df -h / | tail -1
 
-      - name: Preparar o volume
+      - name: Prepare the volume
         run: |
           sudo chown -R runner:runner /mnt/build
           echo "WS=/mnt/build/ws" >> $GITHUB_ENV
           df -h / /mnt/build | tail -2
 
-      - name: Dependências + repo
+      - name: Dependencies + repo
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq python3 git curl unzip zip rsync bc bison flex libssl-dev
@@ -55,16 +55,16 @@ jobs:
           chmod +x ~/.local/bin/repo; echo "$HOME/.local/bin" >> $GITHUB_PATH
           git config --global user.email ci@localhost; git config --global user.name ci
 
-      - name: repo sync (18 projetos, revisões PINADAS pelo manifesto)
+      - name: repo sync (18 projects, revisions PINNED by the manifest)
         run: |
           mkdir -p "$WS" && cd "$WS"
           repo init -q -u https://android.googlesource.com/kernel/manifest \
                     -b "${{ inputs.manifest_branch }}" --depth=1
           repo sync -c -j$(nproc) --no-tags --fail-fast
-          echo "--- default revision do manifesto:"; grep -E "<default" .repo/manifests/default.xml
+          echo "--- manifest default revision:"; grep -E "<default" .repo/manifests/default.xml
           du -sh . ; df -h / /mnt/build | tail -2
 
-      - name: Árvores da Motorola na tag ${{ inputs.mmi_tag }}
+      - name: Motorola trees at tag ${{ inputs.mmi_tag }}
         run: |
           cd "$WS"; T="${{ inputs.mmi_tag }}"
           dl(){ curl -fsSL "https://codeload.github.com/MotorolaMobilityLLC/$1/tar.gz/refs/tags/$T" | tar -xz; }
@@ -72,12 +72,12 @@ jobs:
           dl kernel-kernel_device_modules-6.1  && mv "kernel-kernel_device_modules-6.1-$T"  kernel_device_modules-6.1
           git clone -q --depth 1 -b "$T" \
             https://github.com/MotorolaMobilityLLC/kernel-build-bazel_mgk_rules build/bazel_mgk_rules
-          # o WORKSPACE do MTK substitui o do AOSP (define @mgk_info, mgk_internal, mgk_ko)
+          # the MTK WORKSPACE replaces the AOSP one (defines @mgk_info, mgk_internal, mgk_ko)
           cp -f build/bazel_mgk_rules/kleaf/bazel.WORKSPACE WORKSPACE
-          # (sem git init: a scmversion vem do .scmversion via setlocalversion, que nao precisa de git)
+          # (no git init: scmversion comes from .scmversion via setlocalversion, which needs no git)
           du -sh .; df -h / /mnt/build | tail -2
 
-      - name: Delta do vienna (overlays)
+      - name: vienna delta (overlays)
         run: |
           cd "$WS/kernel_device_modules-6.1"
           mkdir -p kernel/configs
@@ -85,68 +85,70 @@ jobs:
             cp -v "arch/arm64/configs/ext_config/$c.config" kernel/configs/
           done
           test -f arch/arm64/configs/mgk_64_k61_defconfig && echo "defconfig OK"
-          # 🎯 O PATCH que mata o dup SEM mexer no AUTO (builds 9-11 provaram que desligar AUTO quebra o
-          #    GKI: CONFIG_MODULE_SCMVERSION depende de LOCALVERSION_AUTO -> "savedefconfig does not match").
-          #    Com AUTO=y (obrigatorio) o scm_version() do setlocalversion le o .scmversion em DOIS lugares:
-          #    o workspace_status (env do CLIENTE do bazel) e o Kbuild (env HERMETICO do Kleaf). Basta
-          #    gatilhar o read numa env var que SO o cliente ve (VD_WS_SCM): workspace_status le (gera o
-          #    -gd77c4cd65aed), Kbuild nao le (sem dup). O env hermetico do Kleaf nao passa VD_WS_SCM (foi
-          #    por isso que BUILD_NUMBER precisou do stamp). Nao toca em config -> nao mexe no ABI check.
+          # 🎯 THE PATCH that kills the dup WITHOUT touching AUTO (builds 9-11 proved that turning AUTO
+          #    off breaks GKI: CONFIG_MODULE_SCMVERSION depends on LOCALVERSION_AUTO -> "savedefconfig does
+          #    not match"). With AUTO=y (mandatory), setlocalversion's scm_version() reads .scmversion in
+          #    TWO places: the workspace_status (bazel CLIENT env) and Kbuild (Kleaf's HERMETIC env). It is
+          #    enough to gate that read on an env var only the CLIENT sees (VD_WS_SCM): workspace_status
+          #    reads it (producing -gd77c4cd65aed), Kbuild does not (no dup). Kleaf's hermetic env does not
+          #    pass VD_WS_SCM (that is why BUILD_NUMBER needed the stamp). It touches no config -> it does
+          #    not affect the ABI check.
           sed -i 's/if test -e .scmversion; then/if test -n "$VD_WS_SCM" \&\& test -e .scmversion; then/' \
             "$WS/kernel-6.1/scripts/setlocalversion"
-          grep -n 'VD_WS_SCM' "$WS/kernel-6.1/scripts/setlocalversion" || { echo "PATCH FALHOU"; exit 1; }
+          grep -n 'VD_WS_SCM' "$WS/kernel-6.1/scripts/setlocalversion" || { echo "PATCH FAILED"; exit 1; }
 
-      - name: O TESTE — o alvo GKI compila com a Linux version EXATA?
+      - name: THE TEST - does the GKI target build with the EXACT Linux version?
         id: build
         env:
           BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN: 1
           KERNEL_VERSION: kernel-6.1
           DEFCONFIG_OVERLAYS: "moto-mgk_64_k61.config moto-mgk_64_k61-vienna.config moto-mgk_64_k61-df.config"
-          # ↓ o workspace_status_stamp.py roda no ENV DO CLIENTE do bazel (bazel.py copia os.environ,
-          #   l.82/614) e le estas direto (l.99-100 e l.357):
-          BUILD_NUMBER: "14680598"          # → sufixo -ab14680598
+          # v workspace_status_stamp.py runs in bazel's CLIENT ENV (bazel.py copies os.environ,
+          #   l.82/614) and reads these directly (l.99-100 and l.357):
+          BUILD_NUMBER: "14680598"          # -> suffix -ab14680598
           SOURCE_DATE_EPOCH: "1767798273"   # → Wed Jan  7 15:04:33 UTC 2026
-          VD_WS_SCM: "1"                     # → so o workspace_status (env do cliente) le o .scmversion;
-                                             #   o Kbuild (env hermetico) nao ve -> nao duplica o hash
+          VD_WS_SCM: "1"                     # -> only workspace_status (client env) reads .scmversion;
+                                             #    Kbuild (hermetic env) does not see it -> no duplicated hash
         run: |
-          set -o pipefail   # sem isto o `| tail` mascara falha do bazel (build 6 deu "success" FALSO)
+          set -o pipefail   # without this, `| tail` masks a bazel failure (build 6 gave a FALSE "success")
           cd "$WS"
-          mkdir -p ../vendor/mediatek/kernel_modules   # stub: só para o WORKSPACE carregar
-          # Linux version EXATA (doc §9.7). Alvo: 6.1.141-android14-11-gd77c4cd65aed-ab14680598
-          # / Wed Jan  7 15:04:33 UTC 2026. Receita da branch main-kernel-build-2023 (a que o repo sync
-          # traz), lida no fonte kleaf DESTA branch (bazel.py + workspace_status_stamp.py + stamp.bzl):
-          #  1. .scmversion: o scripts/setlocalversion le este arquivo verbatim -> -gd77c4cd65aed.
-          #  2. --nokleaf_localversion: o DEFAULT (--kleaf_localversion) usa git describe e IGNORA o
-          #     .scmversion (por isso builds 4-5 sairam com scmversion VAZIO). So --nokleaf_localversion
-          #     faz o stamp chamar setlocalversion -> le o .scmversion (stamp.py l.313-314).
-          #  3. --config=stamp: sem ele stamp.bzl (l.57-62/164-180) hardcoda -maybe-dirty + epoch 0.
-          #  ⚠️ Esta branch NAO tem workspace_status.json NEM --extra_git_project (builds 2-6 usaram
-          #     mecanismos do kleaf `main`, que nao existem aqui — dai o "Unrecognized option" do build 6).
-          #  4. .source_date_epoch_dir -> kernel-6.1: O LEVER FINAL (build 7 mostrou o WARNING "Can't
-          #     determine STABLE_SCMVERSIONS for kernel-6.1"). list_projects() so ve projetos do `repo`;
-          #     o kernel-6.1 (tarball) fica fora do mapa. O stamp.py (l.237) le este symlink e adiciona
-          #     o kernel_rel a all_projects -> ai o setlocalversion roda no kernel-6.1 e le o .scmversion,
-          #     e a chave STABLE_SCMVERSIONS["kernel-6.1"] passa a existir com -gd77c4cd65aed-ab14680598.
+          mkdir -p ../vendor/mediatek/kernel_modules   # stub: just so the WORKSPACE loads
+          # EXACT Linux version (doc 9.7). Target: 6.1.141-android14-11-gd77c4cd65aed-ab14680598
+          # / Wed Jan  7 15:04:33 UTC 2026. Recipe from the main-kernel-build-2023 branch (the one repo
+          # sync brings), read in THIS branch's kleaf source (bazel.py + workspace_status_stamp.py + stamp.bzl):
+          #  1. .scmversion: scripts/setlocalversion reads this file verbatim -> -gd77c4cd65aed.
+          #  2. --nokleaf_localversion: the DEFAULT (--kleaf_localversion) uses git describe and IGNORES
+          #     .scmversion (that is why builds 4-5 came out with an EMPTY scmversion). Only
+          #     --nokleaf_localversion makes the stamp call setlocalversion -> it reads .scmversion
+          #     (stamp.py l.313-314).
+          #  3. --config=stamp: without it, stamp.bzl (l.57-62/164-180) hardcodes -maybe-dirty + epoch 0.
+          #  WARNING: this branch has NEITHER workspace_status.json NOR --extra_git_project (builds 2-6
+          #     used kleaf `main` mechanisms that do not exist here - hence build 6's "Unrecognized option").
+          #  4. .source_date_epoch_dir -> kernel-6.1: THE FINAL LEVER (build 7 showed the WARNING "Can't
+          #     determine STABLE_SCMVERSIONS for kernel-6.1"). list_projects() only sees `repo` projects;
+          #     kernel-6.1 (a tarball) is outside the map. stamp.py (l.237) reads this symlink and adds
+          #     kernel_rel to all_projects -> then setlocalversion runs in kernel-6.1 and reads .scmversion,
+          #     and the STABLE_SCMVERSIONS["kernel-6.1"] key comes to exist with -gd77c4cd65aed-ab14680598.
           echo "-gd77c4cd65aed" > kernel-6.1/.scmversion
           ln -sfn kernel-6.1 .source_date_epoch_dir
-          # 🔑 --output_user_root manda a saida do Bazel pro volume do maximize-build-space (a raiz enche).
+          # 🔑 --output_user_root sends Bazel output to the maximize-build-space volume (the root fills up).
           BZ=/mnt/build/bazel-root; mkdir -p "$BZ"
           tools/bazel --output_user_root="$BZ" run --config=stamp --nokleaf_localversion "${{ inputs.target }}" -- --dist_dir="$PWD/dist" 2>&1 | tail -80
           rc=${PIPESTATUS[0]}
-          echo "===== GROUND TRUTH: STABLE_SCMVERSIONS / EPOCHS que o Kleaf computou ====="
-          cat bazel-out/stable-status.txt 2>/dev/null | grep -E 'SCMVERSION|SOURCE_DATE' || echo "(sem stable-status.txt)"
-          echo "===== CONFIG_LOCALVERSION_AUTO no .config final (medir, nao supor) ====="
+          echo "===== GROUND TRUTH: STABLE_SCMVERSIONS / EPOCHS computed by Kleaf ====="
+          cat bazel-out/stable-status.txt 2>/dev/null | grep -E 'SCMVERSION|SOURCE_DATE' || echo "(no stable-status.txt)"
+          echo "===== CONFIG_LOCALVERSION_AUTO in the final .config (measure, do not assume) ====="
           find /mnt/build -name '.config' 2>/dev/null | xargs -r grep -l 'CONFIG_LOCALVERSION' 2>/dev/null | head -2 \
-            | xargs -r grep -H 'LOCALVERSION_AUTO\|^CONFIG_LOCALVERSION=' 2>/dev/null || echo "(nao achou .config)"
-          echo "===== localversion files gerados (o que o Kbuild concatena) ====="
+            | xargs -r grep -H 'LOCALVERSION_AUTO\|^CONFIG_LOCALVERSION=' 2>/dev/null || echo "(.config not found)"
+          echo "===== generated localversion files (what Kbuild concatenates) ====="
           find /mnt/build -name 'localversion' 2>/dev/null | head -8 | while read f; do echo "$f => [$(cat "$f" 2>/dev/null)]"; done
-          echo "--- disco depois do build:"; df -h / /mnt/build | tail -2
+          echo "--- disk after the build:"; df -h / /mnt/build | tail -2
           exit $rc
 
-      - name: O que saiu
+      - name: Output
         if: always()
         run: |
-          ls -lh "$WS/dist" 2>/dev/null || echo "sem dist/"
+          ls -lh "$WS/dist" 2>/dev/null || echo "no dist/"
           find "$WS/dist" -maxdepth 1 -name "Image*" -o -maxdepth 1 -name "*.ko" 2>/dev/null | head -20
 
       - uses: actions/upload-artifact@v4

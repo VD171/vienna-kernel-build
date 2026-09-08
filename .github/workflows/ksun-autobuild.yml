@@ -1,21 +1,21 @@
-name: KSU-Next autobuild (segue o CI/dev HEAD -> rebuilda o kernel built-in)
+name: KSU-Next autobuild (follows the CI/dev HEAD -> rebuilds the built-in kernel)
 
-# Lado GITHUB da automacao (25/08/2026; segue o CI desde 31/08). FIX 02/09/2026: parou de commitar/
-# pushar o bump DENTRO do build-gki-ksu.yml -- o GITHUB_TOKEN das Actions nao tem permissao `workflows`
-# e o push era REJEITADO ("refusing to allow a GitHub App to create or update workflow ... without
-# workflows permission"), travando o autobuild desde 01/09. Agora o dev HEAD vai DIRETO pro build via
-# output do job (needs.detect.outputs.latest), e o "ja buildei este SHA?" fica no actions/cache -- SEM
-# push nenhum. Cron diario: se o HEAD do branch default (dev) do KSU-Next OFICIAL mudou e ainda nao foi
-# buildado, dispara o build. Segue o CI (@ksunext_ci compila esses commits; e' de la que o AndroidUpdate
-# instala o MANAGER) em vez da release TAG. NAO flasha (flash so manual; driver sobe aqui, manager alinhado
-# pelo AndroidSync).
+# GITHUB side of the automation (2026-08-25; follows the CI since 2026-08-31). FIX 2026-09-02: it stopped
+# committing/pushing the bump INSIDE build-gki-ksu.yml -- the Actions GITHUB_TOKEN has no `workflows`
+# permission and the push was REJECTED ("refusing to allow a GitHub App to create or update workflow ...
+# without workflows permission"), which stalled the autobuild since 2026-09-01. Now the dev HEAD goes
+# STRAIGHT to the build through the job output (needs.detect.outputs.latest), and "did I already build this
+# SHA?" lives in actions/cache -- NO push at all. Daily cron: if the HEAD of the default branch (dev) of the
+# OFFICIAL KSU-Next changed and has not been built yet, trigger the build. It follows the CI (@ksunext_ci
+# compiles those commits; that is where AndroidUpdate installs the MANAGER from) instead of the release TAG.
+# It does NOT flash (flashing is manual only; the driver is bumped here, the manager is aligned by AndroidSync).
 on:
   schedule:
-    - cron: "17 6 * * *"   # 06:17 UTC diario
+    - cron: "17 6 * * *"   # 06:17 UTC daily
   workflow_dispatch:
 
 permissions:
-  contents: write   # o job de build publica a release
+  contents: write   # the build job publishes the release
 
 jobs:
   detect:
@@ -29,14 +29,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -e
-          # SEGUE O CI: HEAD do branch default (dev) do KSU-Next OFICIAL — o commit que o @ksunext_ci
-          # compila (o manager que o AndroidUpdate instala) e o que o driver built-in deve casar.
+          # FOLLOWS THE CI: HEAD of the default branch (dev) of the OFFICIAL KSU-Next - the commit that
+          # @ksunext_ci compiles (the manager AndroidUpdate installs) and the one the built-in driver must match.
           DEFBR=$(gh api repos/KernelSU-Next/KernelSU-Next -q .default_branch)
           LATEST=$(gh api "repos/KernelSU-Next/KernelSU-Next/commits/$DEFBR" -q .sha)
-          [ -n "$LATEST" ] || { echo "sem HEAD do dev"; exit 1; }
+          [ -n "$LATEST" ] || { echo "no dev HEAD"; exit 1; }
           echo "KSU-Next dev($DEFBR) HEAD=$LATEST"
           echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
-      # "ja buildei este SHA?" -> cache (sem push). HIT = ja buildado (skip); MISS = build.
+      # "did I already build this SHA?" -> cache (no push). HIT = already built (skip); MISS = build.
       - id: seen
         uses: actions/cache/restore@v4
         with:
@@ -47,10 +47,10 @@ jobs:
         run: |
           if [ "${{ steps.seen.outputs.cache-hit }}" = "true" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "SHA ${{ steps.head.outputs.latest }} ja buildado (cache hit) — nada a fazer."
+            echo "SHA ${{ steps.head.outputs.latest }} already built (cache hit) - nothing to do."
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "dev HEAD novo — vai buildar."
+            echo "new dev HEAD - will build."
           fi
 
   build:
@@ -60,7 +60,7 @@ jobs:
     with:
       ksun_ref: ${{ needs.detect.outputs.latest }}
 
-  # marca o SHA como buildado SO' apos o build OK (build que falha retenta no proximo cron)
+  # mark the SHA as built ONLY after a successful build (a failed build retries on the next cron)
   mark:
     needs: [detect, build]
     if: needs.detect.outputs.changed == 'true' && needs.build.result == 'success'
