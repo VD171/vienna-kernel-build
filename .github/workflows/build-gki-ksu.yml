@@ -1,11 +1,11 @@
-name: build vienna GKI + KSU-Next OFICIAL built-in (SEM susfs)
+name: build vienna GKI + OFFICIAL KSU-Next built-in (WITHOUT susfs)
 
-# Fase 2, decisao do dono "sem susfs" (25/08/2026): GKI `common` PURO @d77c4cd65aed
-# (tag android14-6.1-2025-07_r11, SUBLEVEL=141), WORKSPACE PADRAO do AOSP (a da MTK era a
-# causa raiz do panic; provado: common pelado BOOTA) + KernelSU-Next OFICIAL v3.3.0 built-in.
-# Sem susfs => sem cola, sem fork, sem 50_/60_, sem base.c: 100% dev oficial, manager alinhado.
-# Vermagic sai natural do git (checkout do commit), mantido limpo com `git update-index
-# --assume-unchanged` nos arquivos que o setup do KSU modifica (senao o git-describe viraria -dirty).
+# Phase 2, owner's decision "no susfs" (2026-08-25): PURE GKI `common` @d77c4cd65aed
+# (tag android14-6.1-2025-07_r11, SUBLEVEL=141), STOCK AOSP WORKSPACE (the MTK one was the
+# root cause of the panic; proven: the bare common BOOTS) + OFFICIAL KernelSU-Next v3.3.0 built-in.
+# No susfs => no glue, no fork, no 50_/60_, no base.c: 100% official dev, manager aligned.
+# Vermagic comes naturally from git (commit checkout), kept clean with `git update-index
+# --assume-unchanged` on the files the KSU setup modifies (otherwise git-describe would turn -dirty).
 on:
   workflow_dispatch:
     inputs:
@@ -21,7 +21,7 @@ on:
       ksun_ref: { type: string, default: "v3.3.0" }
 
 permissions:
-  contents: write   # publicar a release (boot+vbmeta+kernel+source)
+  contents: write   # publish the release (boot+vbmeta+kernel+source)
 
 jobs:
   build:
@@ -32,7 +32,7 @@ jobs:
         run: |
           echo "cores $(nproc)"; free -h | sed -n 2p; df -h / | tail -1
 
-      - name: Liberar disco
+      - name: Free up disk
         uses: easimon/maximize-build-space@master
         with:
           root-reserve-mb: 2048
@@ -56,7 +56,7 @@ jobs:
         with:
           path: _repo
 
-      - name: Dependencias + repo
+      - name: Dependencies + repo
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq python3 git curl unzip zip rsync bc bison flex libssl-dev
@@ -78,16 +78,16 @@ jobs:
           git fetch --depth=1 https://android.googlesource.com/kernel/common "refs/tags/${{ inputs.gki_tag }}"
           git checkout -q FETCH_HEAD
           H=$(git rev-parse HEAD)
-          [ "$H" = "d77c4cd65aedc9148e9db607aef6901cabfb62e5" ] || { echo "🔴 SHA nao bate"; exit 1; }
+          [ "$H" = "d77c4cd65aedc9148e9db607aef6901cabfb62e5" ] || { echo "🔴 SHA mismatch"; exit 1; }
           echo "HEAD=$H  SUBLEVEL=$(grep -E '^SUBLEVEL' Makefile)"
 
-      - name: Remover GKI protected exports (fix wifi/bt em kernel custom)
+      - name: Remove GKI protected exports (wifi/bt fix on custom kernel)
         run: |
-          # CAUSA RAIZ (26/08) da fase 2 sem wifi: no kernel custom a chave de assinatura e NOSSA,
-          # entao os modulos GKI stock (rfkill/cfg80211/mac80211, assinados pelo Google) sao "unsigned"
-          # p/ nos e NAO podem resolver os SIMBOLOS PROTEGIDOS -> a cadeia rfkill->cfg80211->mac80211->
-          # wlan_drv nao sobe -> sem wifi. Fix padrao da comunidade GKI: remover a lista de protected
-          # exports do common. E invisivel a um diff de defconfig: e alvo do BUILD.bazel, nao do Kconfig.
+          # ROOT CAUSE (2026-08-26) of phase 2 having no wifi: on a custom kernel the signing key is
+          # OURS, so the stock GKI modules (rfkill/cfg80211/mac80211, signed by Google) are "unsigned"
+          # to us and CANNOT resolve the PROTECTED SYMBOLS -> the rfkill->cfg80211->mac80211->wlan_drv
+          # chain never comes up -> no wifi. Standard GKI community fix: drop the protected exports list
+          # from common. It is invisible to a defconfig diff: it targets BUILD.bazel, not Kconfig.
           cd "$WS/common"
           FILES=$(ls android/abi_gki_protected_exports_* 2>/dev/null || true)
           sed -i '/protected_exports_list/d' BUILD.bazel
@@ -95,35 +95,35 @@ jobs:
           git update-index --assume-unchanged BUILD.bazel $FILES 2>/dev/null || true
           echo "--- protected_exports_list no BUILD.bazel (deve sumir):"
           grep -n protected_exports_list BUILD.bazel && { echo "ainda tem"; exit 1; } || echo "  (removido OK)"
-          ls android/abi_gki_protected_exports_* 2>/dev/null && { echo "abi ainda existe"; exit 1; } || echo "--- abi_gki_protected_exports_* removidos OK"
+          ls android/abi_gki_protected_exports_* 2>/dev/null && { echo "abi still present"; exit 1; } || echo "--- abi_gki_protected_exports_* removed OK"
 
-      - name: Integrar KSU-Next OFICIAL (built-in, sem susfs)
+      - name: Integrate OFFICIAL KSU-Next (built-in, no susfs)
         id: ksu
         run: |
           cd "$WS"
           KSUN_REF="${{ inputs.ksun_ref }}"
-          # setup.sh OFICIAL do rifsxd (KernelSU-Next/KernelSU-Next). $KSUN_REF = tag a dar checkout.
+          # OFFICIAL setup.sh from rifsxd (KernelSU-Next/KernelSU-Next). $KSUN_REF = tag to check out.
           ( cd common && curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/${KSUN_REF}/kernel/setup.sh" | bash -s "$KSUN_REF" )
-          # o setup cria drivers/kernelsu (symlink) + KernelSU-Next/ e edita Kconfig/Makefile de drivers/
-          ls -d common/KernelSU-Next 2>/dev/null || ls -l common/drivers/kernelsu 2>/dev/null || { echo "🔴 setup.sh falhou"; exit 1; }
-          echo "--- versao KSU-Next integrada:"; ( cd common/KernelSU-Next 2>/dev/null && git describe --tags 2>/dev/null || cat kernel/Makefile 2>/dev/null | grep -m1 -i version || true )
-          # === BAKER DA VERSAO (fix v0.0.1): o Kbuild calcula KSU_VERSION=30000+git-rev-count do
-          #     proprio git, mas o sandbox do Bazel NAO tem .git -> fallback (1 / v0.0.1) -> su quebra
-          #     e o manager fica "legacy". Computamos aqui (o clone TEM git) e injetamos como literal. ===
+          # the setup creates drivers/kernelsu (symlink) + KernelSU-Next/ and edits drivers/ Kconfig/Makefile
+          ls -d common/KernelSU-Next 2>/dev/null || ls -l common/drivers/kernelsu 2>/dev/null || { echo "🔴 setup.sh failed"; exit 1; }
+          echo "--- integrated KSU-Next version:"; ( cd common/KernelSU-Next 2>/dev/null && git describe --tags 2>/dev/null || cat kernel/Makefile 2>/dev/null | grep -m1 -i version || true )
+          # === VERSION BAKER (v0.0.1 fix): Kbuild computes KSU_VERSION=30000+git-rev-count from git
+          #     itself, but the Bazel sandbox has NO .git -> fallback (1 / v0.0.1) -> su breaks and the
+          #     manager shows up as "legacy". We compute it here (the clone HAS git) and inject a literal. ===
           ( cd common/KernelSU-Next && ( [ -f .git/shallow ] && git fetch --unshallow -q 2>/dev/null || git fetch -q --tags 2>/dev/null || true ) )
           KV=$(cd common/KernelSU-Next && git rev-list --count HEAD 2>/dev/null)
           KT=$(cd common/KernelSU-Next && git describe --tags --abbrev=0 2>/dev/null || echo "$KSUN_REF")
-          [ -n "$KV" ] && [ "$KV" -gt 1 ] || { echo "🔴 KSU_GIT_VERSION invalido ($KV)"; exit 1; }
+          [ -n "$KV" ] && [ "$KV" -gt 1 ] || { echo "🔴 invalid KSU_GIT_VERSION ($KV)"; exit 1; }
           KB=common/KernelSU-Next/kernel/Kbuild
           sed -i "s|^# Check if this is a git repository|KSU_GIT_VERSION := ${KV}\nKSU_GIT_TAG := ${KT}\nKSU_GIT_VERSION_VALID := 1\n# Check if this is a git repository|" "$KB"
           echo "--- BAKED KSU: KSU_GIT_VERSION=${KV}  KSU_VERSION=$((30000+KV))  tag=${KT}"
           echo "ksu_version=$((30000+KV))" >> "$GITHUB_OUTPUT"
           grep -nE "KSU_GIT_VERSION :=|KSU_GIT_TAG :=|KSU_GIT_VERSION_VALID :=" "$KB" | head
-          # manter o git-describe LIMPO (senao o KSU deixa a arvore -dirty e o vermagic viraria ...-dirty).
+          # keep git-describe CLEAN (otherwise KSU leaves the tree -dirty and vermagic would turn ...-dirty).
           ( cd common && git update-index --assume-unchanged $(git ls-files -m) 2>/dev/null || true )
-          echo "--- scmversion (deve ser -gd77c4cd65aed, SEM -dirty):"; ( cd common && ./scripts/setlocalversion 2>/dev/null || true )
+          echo "--- scmversion (must be -gd77c4cd65aed, WITHOUT -dirty):"; ( cd common && ./scripts/setlocalversion 2>/dev/null || true )
 
-      - name: Compilar (common + KSU-Next oficial)
+      - name: Build (common + official KSU-Next)
         id: build
         env:
           BUILD_NUMBER: "14680598"
@@ -136,37 +136,37 @@ jobs:
           rc=${PIPESTATUS[0]}
           echo "===== CONFIG_KSU no .config ====="
           find /mnt/build -name '.config' 2>/dev/null | xargs -r grep -l 'CONFIG_KSU=' 2>/dev/null | head -1 \
-            | xargs -r grep -E 'CONFIG_KSU=|CONFIG_KSU_' 2>/dev/null || echo "(KSU nao no .config!)"
-          echo "--- disco:"; df -h / /mnt/build | tail -2
+            | xargs -r grep -E 'CONFIG_KSU=|CONFIG_KSU_' 2>/dev/null || echo "(KSU not in .config!)"
+          echo "--- disk:"; df -h / /mnt/build | tail -2
           exit $rc
 
-      - name: O que saiu + Linux version + marcadores
+      - name: Output + Linux version + markers
         if: always()
         run: |
-          ls -lh "$WS/dist" 2>/dev/null | grep -iE 'image|symvers' || echo "sem dist/"
+          ls -lh "$WS/dist" 2>/dev/null | grep -iE 'image|symvers' || echo "no dist/"
           IMG=$(find "$WS/dist" -maxdepth 1 -name 'Image' | head -1)
           if [ -n "$IMG" ]; then
-            echo "=== Linux version (byte a byte?) ==="; strings "$IMG" | grep -m1 'Linux version'
-            echo "=== marcadores KSU ==="; strings "$IMG" | grep -iE 'kernelsu|susfs' | sort -u | head -12
+            echo "=== Linux version (byte for byte?) ==="; strings "$IMG" | grep -m1 'Linux version'
+            echo "=== KSU markers ==="; strings "$IMG" | grep -iE 'kernelsu|susfs' | sort -u | head -12
           fi
 
-      - name: Empacotar a SOURCE correspondente (GPL) - a arvore exata que compilou
+      - name: Package the corresponding SOURCE (GPL) - the exact tree that was compiled
         if: success()
         run: |
-          # GPL-2.0: quem distribui o binario tem de oferecer a fonte correspondente.
-          # Aqui sai a arvore `common/` EXATA que produziu este Image (GKI common na tag do
-          # stock + KernelSU-Next integrado + o baker da versao), sem .git e sem saida do bazel.
-          # Vira asset da release junto do kernel. Nao e um espelho do AOSP: e o que compilou.
+          # GPL-2.0: whoever distributes the binary must offer the corresponding source.
+          # This produces the EXACT `common/` tree that built this Image (GKI common at the stock
+          # tag + integrated KernelSU-Next + the version baker), without .git and without bazel output.
+          # It ships as a release asset next to the kernel. It is not an AOSP mirror: it is what compiled.
           cd "$WS"
           tar --exclude='.git' --exclude='bazel-*' --exclude='out' \
               -I 'zstd -T0 -12' -cf "$WS/dist/vienna-kernel-source-corresponding.tar.zst" common
           ls -lh "$WS/dist/vienna-kernel-source-corresponding.tar.zst"
           sha256sum "$WS/dist/vienna-kernel-source-corresponding.tar.zst"
-          echo "--- revisoes que compoem esta arvore (a receita, para reproduzir):"
+          echo "--- revisions that make up this tree (the recipe, to reproduce):"
           echo "  GKI common : ${{ inputs.gki_tag }} (android.googlesource.com/kernel/common)"
           echo "  KernelSU-Next: ${{ inputs.ksun_ref }} (github.com/KernelSU-Next/KernelSU-Next)"
 
-      - name: Empacotar boot flashavel + vbmeta patched + publicar release
+      - name: Package flashable boot + patched vbmeta + publish release
         if: success()
         env:
           GH_TOKEN: ${{ github.token }}
@@ -176,19 +176,19 @@ jobs:
         run: |
           set -e
           cd "$WS/dist"
-          # boot-gz.img: direto no dist ou dentro de boot-img*.tar.gz
+          # boot-gz.img: directly in dist or inside boot-img*.tar.gz
           if [ ! -f boot-gz.img ]; then
             BT=$(ls boot-img*.tar.gz boot_img*.tar.gz 2>/dev/null | head -1)
             [ -n "$BT" ] && tar xzf "$BT" || true
           fi
-          [ -f boot-gz.img ] || { echo "boot-gz.img ausente no dist"; ls -l; exit 1; }
-          # ferramentas: avbtool.py standalone (AOSP) + patch-vbmeta.py (repo) + vbmeta stock (release publica)
+          [ -f boot-gz.img ] || { echo "boot-gz.img missing from dist"; ls -l; exit 1; }
+          # tools: standalone avbtool.py (AOSP) + patch-vbmeta.py (repo) + stock vbmeta (public release)
           curl -fsSL "https://android.googlesource.com/platform/external/avb/+/refs/heads/main/avbtool.py?format=TEXT" | base64 -d > /tmp/avbtool.py
           PV="$GITHUB_WORKSPACE/_repo/flash-recipe/patch-vbmeta.py"
-          [ -f "$PV" ] || { echo "patch-vbmeta.py ausente (checkout _repo?)"; exit 1; }
+          [ -f "$PV" ] || { echo "patch-vbmeta.py missing (checkout _repo?)"; exit 1; }
           gh release download "$STOCK_RELEASE" -R "$GITHUB_REPOSITORY" -p 'vbmeta--*.img' -D /tmp --clobber
-          VB=$(ls /tmp/vbmeta--*.img | head -1); [ -f "$VB" ] || { echo "vbmeta stock nao baixou"; exit 1; }
-          # receita mkbootimg-free (PROVADA 02/09): boot-gz do kleaf -> re-footer salt stock -> patch vbmeta stock
+          VB=$(ls /tmp/vbmeta--*.img | head -1); [ -f "$VB" ] || { echo "stock vbmeta did not download"; exit 1; }
+          # mkbootimg-free recipe (PROVEN 2026-09-02): kleaf boot-gz -> re-footer with stock salt -> patch stock vbmeta
           ORIG=$(python3 /tmp/avbtool.py info_image --image boot-gz.img | awk '/Image Size:/{print $3; exit}')
           head -c "$ORIG" boot-gz.img > boot-raw.img
           SALT=$(python3 "$PV" --print-salt "$VB")
@@ -197,8 +197,8 @@ jobs:
           python3 "$PV" "$VB" boot-raw.img vbmeta-new.img
           BD=$(python3 /tmp/avbtool.py info_image --image boot-new.img  | awk '/Hash descriptor/{h=1} h&&/Digest:/{print $2;exit}')
           VD=$(python3 /tmp/avbtool.py info_image --image vbmeta-new.img | awk '/Partition Name: *boot/{p=1} p&&/Digest:/{print $2;exit}')
-          [ "$BD" = "$VD" ] || { echo "boot/vbmeta NAO casaram: $BD vs $VD"; exit 1; }
-          echo "par casado: $BD"
+          [ "$BD" = "$VD" ] || { echo "boot/vbmeta DID NOT match: $BD vs $VD"; exit 1; }
+          echo "matched pair: $BD"
           N="custom-KernelSU-Next-${KSU_VERSION}"; D="$DEVICE_TAG"
           GZ=$(ls *.gz | grep -iE 'image' | head -1)
           cp "$GZ"          "kernel--${N}--${D}.Image.gz"
@@ -214,12 +214,12 @@ jobs:
           if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" -R "$GITHUB_REPOSITORY" $ASSETS --clobber
           else
-            gh release create "$TAG" -R "$GITHUB_REPOSITORY" \
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" --latest=false \
               -t "Custom kernel: KernelSU-Next built-in (${KSU_VERSION}), ${D} (Android)" \
-              -n "Autobuild seguindo o KSU-Next CI. Par boot+vbmeta CASADO (${BD}) - flash o PAR, vbmeta primeiro (o boot passa o preflash). Regeneracao/receita em flash-recipe/. Kernel GPL-2.0, source correspondente anexa. AVISO: um boot built-in custom pode dar bootloop no vienna mesmo com vbmeta casado - tenha recovery fase-1 (boot stock + init_boot LKM)." \
+              -n "Autobuild following the KSU-Next CI. MATCHED boot+vbmeta pair (${BD}) - flash the PAIR, vbmeta first (boot passes preflash). Regeneration/recipe in flash-recipe/. Kernel GPL-2.0, corresponding source attached. WARNING: a custom built-in boot can bootloop on vienna even with a matched vbmeta - keep a phase-1 recovery (stock boot + init_boot LKM). NOTE: this release is deliberately NOT marked Latest - the LKM line (root-lkm-*) is the Latest one." \
               $ASSETS
           fi
-          echo "RELEASE $TAG publicada."
+          echo "RELEASE $TAG published."
 
       - uses: actions/upload-artifact@v4
         if: always()
