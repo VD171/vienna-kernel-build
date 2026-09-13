@@ -2,6 +2,8 @@
 
 [🇬🇧 English](README.md) · 🇧🇷 Português
 
+📜 **Histórico de releases: [CHANGELOG.md](CHANGELOG.md)** - uma entrada por release LKM auto-publicada, com link de cada release e tag.
+
 Build do kernel do **Motorola Edge 60 Neo** (`vienna`, MT6878 / Dimensity 7400) por GitHub Actions.
 
 > ⚠️ **Para a maioria, você NÃO precisa disto para ter root.** O root do Edge 60 Neo se faz com
