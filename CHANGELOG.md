@@ -1,23 +1,22 @@
 # Changelog - vienna-kernel-build (root-lkm)
 
-Uma entrada por release LKM auto-publicada (mais recente no topo).
+One entry per auto-published LKM release, most recent on top. Each entry links its GitHub release and its tag.
 
-- **33276** (`root-lkm-33276-MMI-W1UIS36H.39-17-8`) - 2026-09-08 13:04:44 UTC - ROM W1UIS36H.39-17-8
-- **33275** (`root-lkm-33275-MMI-W1UIS36H.39-17-8`) - 2026-09-08 13:04:44 UTC - ROM W1UIS36H.39-17-8
-- **33274** (`root-lkm-33274-MMI-W1UIS36H.39-17-8`) - 2026-09-08 13:04:44 UTC - ROM W1UIS36H.39-17-8
-- **33273** (`root-lkm-33273-MMI-W1UIS36H.39-17-8`) - 2026-09-08 13:04:44 UTC - ROM W1UIS36H.39-17-8
-- **33272** (`root-lkm-33272-MMI-W1UIS36H.39-17-8`) - 2026-09-08 13:04:44 UTC - ROM W1UIS36H.39-17-8
-- **33271** (`root-lkm-33271-MMI-W1UIS36H.39-17-8`) - 2026-09-08 13:04:44 UTC - ROM W1UIS36H.39-17-8
-- **33270** (`root-lkm-33270-MMI-W1UIS36H.39-17-8`) - 2026-09-08 13:04:44 UTC - ROM W1UIS36H.39-17-8
-- **33268** (`root-lkm-33268-MMI-W1UIS36H.39-17-8`) - 2026-09-08 13:04:44 UTC - ROM W1UIS36H.39-17-8
-- **33267** (`root-lkm-33267-MMI-W1UIS36H.39-17-8`) - 2026-09-08 13:04:44 UTC - ROM W1UIS36H.39-17-8
-- **33266** (`root-lkm-33266-MMI-W1UIS36H.39-17-8`) - 2026-09-08 13:04:44 UTC - ROM W1UIS36H.39-17-8
-- **33265** (`root-lkm-33265-MMI-W1UIS36H.39-17-8`) - 2026-09-08 13:04:44 UTC - ROM W1UIS36H.39-17-8
-- **33264** (`root-lkm-33264-MMI-W1UIS36H.39-17-8`) - 2026-09-08 13:04:44 UTC - ROM W1UIS36H.39-17-8
-- **33262** (`root-lkm-33262-MMI-W1UIS36H.39-17-8`) - 2026-09-08 13:04:44 UTC - ROM W1UIS36H.39-17-8
-- **33260** (`root-lkm-33260-MMI-W1UIS36H.39-17-8`) - 2026-09-08 13:04:44 UTC - ROM W1UIS36H.39-17-8
-- **33259** (`root-lkm-33259-MMI-W1UIS36H.39-17-8`) - 2026-09-03 02:05:38 UTC - ROM W1UIS36H.39-17-8
-- **33258** (`root-lkm-33258-MMI-W1UIS36H.39-17-8`) - 2026-09-03 02:05:38 UTC - ROM W1UIS36H.39-17-8
-- **33254** (`root-lkm-33254-MMI-W1UIS36H.39-17-8`) - 2026-09-03 02:05:38 UTC - ROM W1UIS36H.39-17-8
-- **33253** (`root-lkm-33253-MMI-W1UIS36H.39-17-8`) - 2026-09-03 02:05:38 UTC - ROM W1UIS36H.39-17-8
-- **0** (`root-lkm-MMI-W1UIS36H.39-17-8`) - 2026-08-26 04:53:49 UTC - ROM W1UIS36H.39-17-8
+- **33276** - 2026-09-08 13:04 UTC - ROM W1UIS36H.39-17-8 - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33276-MMI-W1UIS36H.39-17-8) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33276-MMI-W1UIS36H.39-17-8)
+- **33275** - 2026-09-08 13:04 UTC - ROM W1UIS36H.39-17-8 - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33275-MMI-W1UIS36H.39-17-8) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33275-MMI-W1UIS36H.39-17-8)
+- **33274** - 2026-09-08 13:04 UTC - ROM W1UIS36H.39-17-8 - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33274-MMI-W1UIS36H.39-17-8) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33274-MMI-W1UIS36H.39-17-8)
+- **33273** - 2026-09-08 13:04 UTC - ROM W1UIS36H.39-17-8 - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33273-MMI-W1UIS36H.39-17-8) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33273-MMI-W1UIS36H.39-17-8)
+- **33272** - 2026-09-08 13:04 UTC - ROM W1UIS36H.39-17-8 - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33272-MMI-W1UIS36H.39-17-8) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33272-MMI-W1UIS36H.39-17-8)
+- **33271** - 2026-09-08 13:04 UTC - ROM W1UIS36H.39-17-8 - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33271-MMI-W1UIS36H.39-17-8) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33271-MMI-W1UIS36H.39-17-8)
+- **33270** - 2026-09-08 13:04 UTC - ROM W1UIS36H.39-17-8 - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33270-MMI-W1UIS36H.39-17-8) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33270-MMI-W1UIS36H.39-17-8)
+- **33268** - 2026-09-08 13:04 UTC - ROM W1UIS36H.39-17-8 - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33268-MMI-W1UIS36H.39-17-8) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33268-MMI-W1UIS36H.39-17-8)
+- **33267** - 2026-09-08 13:04 UTC - ROM W1UIS36H.39-17-8 - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33267-MMI-W1UIS36H.39-17-8) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33267-MMI-W1UIS36H.39-17-8)
+- **33266** - 2026-09-08 13:04 UTC - ROM W1UIS36H.39-17-8 - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33266-MMI-W1UIS36H.39-17-8) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33266-MMI-W1UIS36H.39-17-8)
+- **33265** - 2026-09-08 13:04 UTC - ROM W1UIS36H.39-17-8 - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33265-MMI-W1UIS36H.39-17-8) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33265-MMI-W1UIS36H.39-17-8)
+- **33264** - 2026-09-08 13:04 UTC - ROM W1UIS36H.39-17-8 - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33264-MMI-W1UIS36H.39-17-8) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33264-MMI-W1UIS36H.39-17-8)
+- **33262** - 2026-09-08 13:04 UTC - ROM W1UIS36H.39-17-8 - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33262-MMI-W1UIS36H.39-17-8) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33262-MMI-W1UIS36H.39-17-8)
+- **33260** - 2026-09-08 13:04 UTC - ROM W1UIS36H.39-17-8 - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33260-MMI-W1UIS36H.39-17-8) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33260-MMI-W1UIS36H.39-17-8)
+- **33259** - 2026-09-03 02:05 UTC - ROM W1UIS36H.39-17-8 - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33259-MMI-W1UIS36H.39-17-8) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33259-MMI-W1UIS36H.39-17-8)
+- **33258** - 2026-09-03 02:05 UTC - ROM W1UIS36H.39-17-8 - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33258-MMI-W1UIS36H.39-17-8) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33258-MMI-W1UIS36H.39-17-8)
+- **33254** - 2026-09-03 02:05 UTC - ROM W1UIS36H.39-17-8 - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33254-MMI-W1UIS36H.39-17-8) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33254-MMI-W1UIS36H.39-17-8)
+- **33253** - 2026-09-03 02:05 UTC - ROM W1UIS36H.39-17-8 - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33253-MMI-W1UIS36H.39-17-8) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33253-MMI-W1UIS36H.39-17-8)
