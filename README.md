@@ -2,6 +2,8 @@
 
 🇬🇧 English · [🇧🇷 Português](README.pt-BR.md)
 
+📜 **Release history: [CHANGELOG.md](CHANGELOG.md)** - one entry per auto-published LKM release, with links to each release and tag.
+
 Reproducible **kernel build for the Motorola Edge 60 Neo** (`vienna`, MT6878 / Dimensity 7400)
 on GitHub Actions, straight from Motorola's GPL release.
 
