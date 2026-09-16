@@ -28,14 +28,28 @@ on GitHub Actions, straight from Motorola's GPL release.
 | Phase 2: **KSU-Next OFFICIAL built in, no SUSFS** | ✅ **complete**: boots, roots, and **Wi-Fi works**, with the stock `vendor_dlkm` untouched. The last blocker was [GKI protected exports](#-the-trap-that-eats-your-wi-fi-gki-protected-exports) |
 | Boots on device | ✅ validated on the maintainer's device (stock and Phase 2) |
 
-## The one thing this repo is worth reading for
+## What this repo answers
+
+One question: **does the GKI target build without `vendor/mediatek`?**
+
+MediaTek's `bazel_mgk_rules` declares `mgk_internal` and `mgk_ko` pointing at `../vendor/mediatek`, a
+**proprietary** tree that neither Motorola nor MediaTek publishes. It blocks the *device modules*.
+The doubt is whether it also blocks the GKI **`Image`**.
+
+- ✅ if it builds → there is a path to a custom kernel with what is public
+- ❌ if it does not → the ceiling is `vendor/mediatek`, and the path is **LKM on top of the factory kernel**
+
+## Assembling the tree (what Motorola's recipe does not say)
 
 Motorola publishes a `MMI-<build>.txt` with defconfig, overlays and Bazel targets. **It is not a
 complete procedure**: it documents the *device delta* and assumes a tree obtained with `repo`.
-Two things it never says:
+What it leaves out:
 
-1. where `build/kernel` and `build/bazel_mgk_rules` come from, and
-2. **at which revision**.
+| Piece | Where it is |
+|---|---|
+| `build/kernel` (Kleaf) | comes from the AOSP manifest |
+| `build/bazel_mgk_rules` | `MotorolaMobilityLLC/kernel-build-bazel_mgk_rules`, **at the same `MMI-*` tag** |
+| the revision of everything | `<default revision="main-kernel-build-2023">` in the manifest |
 
 ### 🪤 The trap that costs days
 

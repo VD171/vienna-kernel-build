@@ -48,9 +48,33 @@ aparelho** e pressupõe uma árvore obtida por `repo`. Faltam nele:
 | `build/bazel_mgk_rules` | `MotorolaMobilityLLC/kernel-build-bazel_mgk_rules`, **na mesma tag `MMI-*`** |
 | revisão de tudo | `<default revision="main-kernel-build-2023">` no manifesto |
 
-🪤 **Não clone `build/kernel` no branch default.** O HEAD é da era bzlmod/Bazel 8 e passa a exigir
-**32** repositórios em `external/`; a revisão que o manifesto fixa é WORKSPACE-based e exige **0**.
-Perseguir os repositórios que "faltam" é caçar o sintoma, a causa é a revisão.
+### 🪤 A armadilha que custa dias
+
+**Não clone `build/kernel` no branch default.**
+
+| `build/kernel` em | Estilo Kleaf | Repos em `external/` exigidos |
+|---|---|---|
+| `main-kernel-build-2023` (o que o manifesto fixa) | `WORKSPACE` | **0** |
+| default / HEAD | `bzlmod` (Bazel 8) | **32** |
+
+Clonar o HEAD faz o Bazel exigir ~32 repositórios que **não estão faltando de verdade**. O sintoma é
+`"repository X not found"`, um de cada vez, o que manda você caçar a coisa errada. A causa é a
+**revisão**.
+
+➜ A correção é deixar o manifesto fixar tudo:
+
+```bash
+repo init -u https://android.googlesource.com/kernel/manifest -b common-android14-6.1 --depth=1
+repo sync -c -j$(nproc)
+```
+
+São 18 projetos, e `tools/bazel` + `WORKSPACE` vêm **prontos**, sem gambiarra de symlink.
+
+### 🔑 O `vendor/mediatek` não barra o kernel GKI
+
+O `WORKSPACE` da MediaTek declara `mgk_internal` / `mgk_ko` apontando para `../vendor/mediatek`, árvore
+**proprietária** que ninguém publica. Crie-a **vazia** e o alvo GKI compila mesmo assim. Só os
+*device modules* ficam barrados.
 
 ## Fase 2: KSU-Next built-in (a parte que deu mais trabalho)
 
@@ -157,6 +181,11 @@ ref pinado e rebuilda o kernel built-in automaticamente (só o artefato, nunca f
 As **fontes do kernel** em si estão espelhadas, extraídas e navegáveis, uma branch por tag de build, em
 **[VD171/vienna-kernel-source](https://github.com/VD171/vienna-kernel-source)**. Diffar duas branches
 de lá mostra o que a Motorola mudou entre duas ROMs.
+
+## Uso
+
+Actions → **build vienna kernel** → *Run workflow*. Entradas: tag MMI, branch do manifesto, alvo Bazel.
+O `Image` sai como artefato.
 
 ## Fontes de kernel publicadas (catálogo)
 
