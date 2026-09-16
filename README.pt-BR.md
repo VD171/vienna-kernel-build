@@ -196,12 +196,6 @@ Esta lista é mantida conforme surgem tags novas.
 | 🐧 [MotorolaMobilityLLC, `MMI-W1UIS36H.39-17-8`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-W1UIS36H.39-17-8) | o release GPL da própria Motorola para esta build |
 | 💾 [stockrom.net, Edge 60 Neo 5G](https://www.stockrom.net/category/motorola/edge-60-neo-5g) | pacotes de firmware stock, úteis se você precisar da ROM inteira em vez de partições soltas |
 
-## Licença
-
-[MIT](LICENSE). Este repo apenas **automatiza** a montagem e o build.
-As fontes do kernel são **GPL-2.0**, da [MotorolaMobilityLLC](https://github.com/MotorolaMobilityLLC),
-e aqui não são redistribuídas nem relicenciadas.
-
 ## Contato
 
 | Canal | Endereço |
@@ -213,3 +207,9 @@ e aqui não são redistribuídas nem relicenciadas.
 | E-mail | vd.priv8@pm.me |
 | XDA-Developers | [@VD171](https://xdaforums.com/m/vd171.4699873/) |
 | GitHub | [@VD171](https://github.com/VD171) |
+
+## Licença
+
+[MIT](LICENSE). Este repo apenas **automatiza** a montagem e o build.
+As fontes do kernel são **GPL-2.0**, da [MotorolaMobilityLLC](https://github.com/MotorolaMobilityLLC),
+e aqui não são redistribuídas nem relicenciadas.
