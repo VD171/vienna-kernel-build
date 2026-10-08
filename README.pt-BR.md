@@ -195,6 +195,7 @@ consulta serve para os dois.
 
 | Tag | Android | Notas |
 |---|---|---|
+| [`MMI-W1UIS36H.39-25-8`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-W1UIS36H.39-25-8) | 16 | uma build posterior |
 | [`MMI-W1UIS36H.39-17-8`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-W1UIS36H.39-17-8) | 16 | **atual**, é a que este workflow compila |
 | [`MMI-V2UIS35.43-12-4-1`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-V2UIS35.43-12-4-1) | 15 |  |
 | [`MMI-V1UIS35H.11-39-28-5`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-V1UIS35H.11-39-28-5) | 15 |  |
@@ -203,6 +204,10 @@ consulta serve para os dois.
 | [`MMI-V1UI35H.11-39-16`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-V1UI35H.11-39-16) | 15 |  |
 | [`MMI-U4UI34.8-28-1`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-U4UI34.8-28-1) | 14 |  |
 | [`MMI-U4UI34.8-22-7`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-U4UI34.8-22-7) | 14 |  |
+
+> ⏳ A `W1UI36H.39-25-11-4` (Android 16), que está sendo distribuída agora por OTA, é mais nova que
+> qualquer tag acima. A source dela foi solicitada à Motorola e esta lista será atualizada quando for
+> publicada.
 
 Repare no token de aparelho **`UI`** em todo Build ID: é ele que identifica a plataforma, e é por
 isso que procurar por "XT2509" não acha nada.
