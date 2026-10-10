@@ -208,7 +208,8 @@ Every **vienna** tag Motorola has released so far, newest first. `kernel-mtk` an
 
 > ⏳ `W1UI36H.39-25-11-4` (Android 16), the build currently rolling out over the air, is newer than any
 > tag above. Its sources have been requested from Motorola and this list will be updated when they are
-> published.
+> published. The stock firmware for this build is already at [VD171/vienna-firmware](https://github.com/VD171/vienna-firmware) - only the
+> kernel source is pending here.
 
 > 💡 Each of these is a tarball. The same sources **extracted into git**, one branch per tag, are at
 > [VD171/vienna-kernel-source](https://github.com/VD171/vienna-kernel-source), where you can grep them

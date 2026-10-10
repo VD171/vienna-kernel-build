@@ -207,7 +207,8 @@ consulta serve para os dois.
 
 > ⏳ A `W1UI36H.39-25-11-4` (Android 16), que está sendo distribuída agora por OTA, é mais nova que
 > qualquer tag acima. A source dela foi solicitada à Motorola e esta lista será atualizada quando for
-> publicada.
+> publicada. O firmware stock desta build já está em [VD171/vienna-firmware](https://github.com/VD171/vienna-firmware) - só a source do
+> kernel está pendente aqui.
 
 Repare no token de aparelho **`UI`** em todo Build ID: é ele que identifica a plataforma, e é por
 isso que procurar por "XT2509" não acha nada.
