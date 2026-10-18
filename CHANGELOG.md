@@ -2,6 +2,7 @@
 
 One entry per auto-published LKM release, most recent on top. Each entry links its GitHub release and its tag.
 
+- **33397** - 2026-10-18 00:00 UTC - ROM W1UI36H.39-25-11-4 - KSU-Next commit `7b5fdb7a5160` - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33397-MMI-W1UI36H.39-25-11-4) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33397-MMI-W1UI36H.39-25-11-4)
 - **33396** - 2026-10-17 15:00 UTC - ROM W1UI36H.39-25-11-4 - KSU-Next commit `b28fce510568` - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33396-MMI-W1UI36H.39-25-11-4) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33396-MMI-W1UI36H.39-25-11-4)
 - **33391** - 2026-10-17 04:30 UTC - ROM W1UI36H.39-25-11-4 - KSU-Next commit `16be0f720419` - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33391-MMI-W1UI36H.39-25-11-4) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33391-MMI-W1UI36H.39-25-11-4)
 - **33390** - 2026-10-16 14:30 UTC - ROM W1UI36H.39-25-11-4 - KSU-Next commit `204f00716490` - [release](https://github.com/VD171/vienna-kernel-build/releases/tag/root-lkm-33390-MMI-W1UI36H.39-25-11-4) - [tag](https://github.com/VD171/vienna-kernel-build/tree/root-lkm-33390-MMI-W1UI36H.39-25-11-4)
