@@ -224,6 +224,16 @@ why searching for "XT2509" finds nothing.
 **Build ID** and **Build fingerprint** (one build per issue). Mine was answered in **2 days**.
 This list is kept updated as new tags appear.
 
+## See also
+
+The three **vienna** repositories, one job each (this one included):
+
+| Where | What |
+|---|---|
+| 🛠 [VD171/vienna-kernel-build](https://github.com/VD171/vienna-kernel-build) | **(this repo)** root (KernelSU-Next LKM patched into `init_boot`), the reproducible kernel build, and the flash recipe |
+| 📲 [VD171/vienna-firmware](https://github.com/VD171/vienna-firmware) | stock firmware (the official fastboot package minus `super`): recover the boot chain, unroot, or restore a single partition |
+| 📦 [VD171/vienna-kernel-source](https://github.com/VD171/vienna-kernel-source) | the GPL kernel sources, extracted and checksummed, one branch per build tag |
+
 ## Links
 
 | Where | What |
