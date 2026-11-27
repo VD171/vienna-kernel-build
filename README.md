@@ -196,6 +196,7 @@ Every **vienna** tag Motorola has released so far, newest first. `kernel-mtk` an
 
 | Tag | Android | Notes |
 |---|---|---|
+| [`MMI-W1UI36H.39-25-11-4`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-W1UI36H.39-25-11-4) | 16 | a later build (no "S") |
 | [`MMI-W1UIS36H.39-25-8`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-W1UIS36H.39-25-8) | 16 | a later build |
 | [`MMI-W1UIS36H.39-17-8`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-W1UIS36H.39-17-8) | 16 | **current**: what this workflow builds |
 | [`MMI-V2UIS35.43-12-4-1`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-V2UIS35.43-12-4-1) | 15 |  |
@@ -206,7 +207,7 @@ Every **vienna** tag Motorola has released so far, newest first. `kernel-mtk` an
 | [`MMI-U4UI34.8-28-1`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-U4UI34.8-28-1) | 14 |  |
 | [`MMI-U4UI34.8-22-7`](https://github.com/MotorolaMobilityLLC/kernel-mtk/releases/tag/MMI-U4UI34.8-22-7) | 14 |  |
 
-> ⏳ `W1UI36H.39-25-11-4` (Android 16), the build currently rolling out over the air, is newer than any
+> ⏳ `W1UIS36H.39-25-11-4-3` (Android 16), the build currently rolling out over the air (now on the device), is newer than any
 > tag above. Its sources have been requested from Motorola and this list will be updated when they are
 > published. The stock firmware for this build is already at [VD171/vienna-firmware](https://github.com/VD171/vienna-firmware) - only the
 > kernel source is pending here.
