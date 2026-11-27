@@ -1,0 +1,63 @@
+# Regenerate CHANGELOG.md from the root-lkm-* releases and commit it back,
+# whenever a release is published, edited or deleted (and on manual dispatch).
+#
+# The commit is made through the Contents REST API with the Actions GITHUB_TOKEN.
+# GitHub signs commits that bot tokens make over the API, so the result is
+# authored by github-actions[bot] AND shows Verified - no signing key is stored
+# in secrets, and the CI commit stays auditably distinct from a human VD171 one.
+name: Changelog
+
+on:
+  release:
+    types: [published, edited, deleted]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: changelog
+  cancel-in-progress: false
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 1
+
+      - name: Regenerate CHANGELOG.md and commit if changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REL_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          bash .github/scripts/gen-changelog.sh CHANGELOG.new
+
+          # Fetch the current file via the API: its blob sha is required to
+          # update it, and its content lets us skip an empty no-op commit.
+          cur_sha="$(gh api "repos/$REPO/contents/CHANGELOG.md" --jq '.sha' 2>/dev/null || true)"
+          if [ -n "$cur_sha" ]; then
+            gh api "repos/$REPO/contents/CHANGELOG.md" --jq '.content' | base64 -d > CHANGELOG.cur
+          else
+            : > CHANGELOG.cur
+          fi
+
+          if cmp -s CHANGELOG.new CHANGELOG.cur; then
+            echo "CHANGELOG.md already current; nothing to commit."
+            exit 0
+          fi
+
+          msg="changelog: sync from releases"
+          [ -n "${REL_TAG:-}" ] && msg="changelog: sync from releases (${REL_TAG})"
+
+          args=(--method PUT "repos/$REPO/contents/CHANGELOG.md"
+                -f message="$msg"
+                -f content="$(base64 -w0 CHANGELOG.new)")
+          [ -n "$cur_sha" ] && args+=(-f sha="$cur_sha")
+          gh api "${args[@]}" >/dev/null
+          echo "CHANGELOG.md updated (Verified github-actions[bot] commit)."
